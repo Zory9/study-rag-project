@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  chroma:
+    image: chromadb/chroma
+    container_name: chroma-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./rag-service/db/chroma_db:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=TRUE
+    restart: always

@@ -1,0 +1,30 @@
+{
+  "name": "rag-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "ingest": "tsx main.ts ingest",
+    "query": "tsx main.ts query"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@langchain/community": "^1.1.15",
+    "@langchain/core": "^1.1.24",
+    "@langchain/openai": "^1.2.7",
+    "@langchain/textsplitters": "^1.0.1",
+    "chromadb": "^3.3.0",
+    "dotenv": "^16.6.1",
+    "pdf-parse": "^1.1.1"
+  }
+}
