@@ -36,7 +36,13 @@ builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<ICookieService, CookieService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-
+builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddHttpClient<IChatService, ChatService>(client =>
+{
+    var baseUrl = builder.Configuration["Appsettings:RagServiceUrl"] ?? "http://localhost:3000";
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 builder.Services.AddHttpContextAccessor();
 

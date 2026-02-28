@@ -9,7 +9,7 @@ namespace RagProject.Data
         public string FileName { get; set; } = string.Empty;
 
         [Required]
-        public string ShortName { get; set; } = string.Empty; // This is your RAG filter key
+        public string ShortName { get; set; } = string.Empty;
 
         public string? FileSummary { get; set; }
 
