@@ -1,64 +1,52 @@
-import * as dotenv from "dotenv";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import type { RetrievalResponse } from "../types.js";
+import type { QueryIntent, Citation, RetrievalResponse } from "../types.js";
 
-dotenv.config();
-
+// Retrieves relevant chunks from Chroma scoped to a specific chat session.
 export async function runRetrieval(
   query: string,
-  intent?: any,
+  sessionId: number,
+  intent: QueryIntent,
+  vectorStore: Chroma,
 ): Promise<RetrievalResponse | string> {
-  const embeddingModel = new OpenAIEmbeddings({
-    apiKey: process.env.OPENAI_API_KEY,
-    model: "text-embedding-3-small",
-  });
+  // Building a chroma $and filter to
+  // always scope to sessionId,
+  // always match isSummary to intent type,
+  // optionally narrow to a fileName within the session
+  const filterClauses: any[] = [
+    { sessionId: { $eq: sessionId } },
+    { isSummary: { $eq: intent.type === "summary" } },
+  ];
 
-  const vectorStore = new Chroma(embeddingModel, {
-    collectionName: "my_document_collection",
-    url: "http://localhost:8000",
-    collectionMetadata: { "hnsw:space": "cosine" },
-  });
-
-  // building a filter dynamically based on intent
-  const filterList: any[] = [];
-
-  filterList.push({ isSummary: { $eq: intent.type === "summary" } });
-
-  // add the name filter if a target file exists
-  console.log(intent)
   if (intent.targetFile && intent.targetFile !== "null") {
-    filterList.push({ shortName: { $eq: intent.targetFile.toLowerCase() } });
+    filterClauses.push({ fileName: { $eq: intent.targetFile } });
   }
 
-  const filter = filterList.length > 1 ? { $and: filterList } : filterList[0];
+  const filter = filterClauses.length === 1 ? filterClauses[0] : { $and: filterClauses };
 
-console.log("Full Chroma Filter:", JSON.stringify(filter, null, 2));
-  // passing the filter to the retriever
+  console.log("Chroma filter:", JSON.stringify(filter, null, 2));
+
   const retriever = vectorStore.asRetriever({
     k: 20,
     searchType: "similarity",
-    filter: filter,
+    filter,
   });
 
-  const relevant_docs = await retriever.invoke(query);
+  const relevantDocs = await retriever.invoke(query);
 
-  if (relevant_docs.length === 0) {
+  if (relevantDocs.length === 0) {
     return "No relevant documents found.";
   }
 
-  const sources = relevant_docs.map((doc) => ({
-    fileName: doc.metadata.source,
-    shortName: doc.metadata.shortName,
-    page: doc.metadata.pageNumber,
-    isSummary: doc.metadata.isSummary,
-    snippet: doc.pageContent.substring(0, 200) + "...", // preview for showing in UI
+  const sources: Citation[] = relevantDocs.map((doc) => ({
+    fileName: doc.metadata.fileName as string,
+    page: (doc.metadata.pageNumber as number) ?? null,
+    lineFrom: (doc.metadata.lineFrom as number | undefined) ?? null,
+    lineTo: (doc.metadata.lineTo as number | undefined) ?? null,
+    snippet: doc.pageContent.substring(0, 200) + "…",
   }));
 
-  console.log(sources)
-
   return {
-    fullContext: relevant_docs.map((d) => d.pageContent).join("\n\n"),
-    sources: sources,
+    fullContext: relevantDocs.map((d) => d.pageContent).join("\n\n"),
+    sources,
   };
 }

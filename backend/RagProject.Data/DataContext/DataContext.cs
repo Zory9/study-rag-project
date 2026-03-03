@@ -8,6 +8,7 @@ namespace RagProject.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<StudyDocument> StudyDocuments { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<MessageSource> MessageSources { get; set; }
         public DbSet<ChatSession> ChatSessions { get; set; }
         public DbSet<SessionDocument> SessionDocuments { get; set; }
 
@@ -38,6 +39,15 @@ namespace RagProject.Data
                 .HasForeignKey(m => m.ChatSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<MessageSource>()
+                .HasOne(s => s.ChatMessage)
+                .WithMany(m => m.Sources)
+                .HasForeignKey(s => s.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SessionDocument>()
+                .HasKey(sd => new { sd.ChatSessionId, sd.StudyDocumentId });
+
             modelBuilder.Entity<SessionDocument>()
                 .HasOne(sd => sd.ChatSession)
                 .WithMany(s => s.SessionDocuments)
@@ -50,9 +60,21 @@ namespace RagProject.Data
                 .HasForeignKey(sd => sd.StudyDocumentId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(r => r.Token)
+                .IsUnique();
+
             modelBuilder.Entity<ChatMessage>()
                 .Property(c => c.Role)
-                .HasConversion<string>();
+                .HasConversion<int>();
         }
     }
 }

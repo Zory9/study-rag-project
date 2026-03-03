@@ -5,10 +5,10 @@ namespace RagProject.Data
 {
     public class User : BaseModel
     {
-        [Required, EmailAddress]
+        [Required, EmailAddress, MaxLength(256)]
         public string Email { get; set; } = string.Empty;
 
-        [Required]
+        [Required, MaxLength(100)]
         public string Username { get; set; } = string.Empty;
 
         [Required, MinLength(10), MaxLength(200)]

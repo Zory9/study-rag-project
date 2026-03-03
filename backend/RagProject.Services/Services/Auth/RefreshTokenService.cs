@@ -23,5 +23,10 @@ namespace RagProject.Services
         {
             return await _dataContext.RefreshTokens.FirstOrDefaultAsync(t => t.UserId == userId && t.IsRevoked == false);
         }
+
+        public async Task SaveChangesAsync()
+        {
+            await _dataContext.SaveChangesAsync();
+        }
     }
 }

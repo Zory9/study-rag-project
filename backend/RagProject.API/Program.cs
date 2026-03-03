@@ -40,7 +40,7 @@ builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient<IChatService, ChatService>(client =>
 {
-    var baseUrl = builder.Configuration["Appsettings:RagServiceUrl"] ?? "http://localhost:3000";
+    var baseUrl = builder.Configuration["Appsettings:RagServiceUrl"] ?? "http://localhost:3100";
     client.BaseAddress = new Uri(baseUrl);
 });
 

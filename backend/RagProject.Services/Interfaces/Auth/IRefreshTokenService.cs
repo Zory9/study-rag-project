@@ -6,6 +6,7 @@ namespace RagProject.Services
     {
         Task<RefreshToken> AddRefreshTokenAsync(RefreshToken refreshToken);
         Task<RefreshToken> GetRefreshTokenAsync(string refreshToken);
-        Task<RefreshToken> GetRefreshTokenByUserIdAsync(int userID);
+        Task<RefreshToken> GetRefreshTokenByUserIdAsync(int userId);
+        Task SaveChangesAsync();
     }
 }

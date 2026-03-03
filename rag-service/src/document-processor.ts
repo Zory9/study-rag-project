@@ -1,83 +1,71 @@
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
-import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { ChatOpenAI } from "@langchain/openai";
+import "dotenv/config";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
-import type { SanitizedDocument, SanitizedMetadata } from "../types.js";
+import { loadByExtension, splitDocuments, sanitizeChunks, generateSummary } from "./ingestion.js";
+import { runRetrieval } from "./retrieval.js";
+import { getQueryIntent, rewriteQueryWithHistory, generateAnswer } from "./answer-generation.js";
+import type { AiChatResponse, ChatHistoryMessage } from "../types.js";
 
 export class DocumentProcessor {
-  private splitter: RecursiveCharacterTextSplitter;
   private model: ChatOpenAI;
+  private vectorStore: Chroma;
 
   constructor() {
-    this.splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 800,
-      chunkOverlap: 50,
-    });
     this.model = new ChatOpenAI({ modelName: "gpt-4o", temperature: 0 });
-  }
-
-  /**
-   * Main entry point: Processes any supported file and adds it to Chroma
-   */
-  async processAndIngest(filePath: string, vectorStore: Chroma) {
-    console.log(`Processing file: ${filePath}`);
-
-    // 1. Load documents based on extension
-    const rawDocs = await this.loadByExtension(filePath);
-
-    // 2. Generate and add a Global Summary
-    const summaryDoc = await this.generateSummary(rawDocs, filePath);
-    await vectorStore.addDocuments([summaryDoc]);
-
-    // 3. Chunk and Sanitize individual snippets
-    const chunks = await this.splitter.splitDocuments(rawDocs);
-    const sanitizedChunks = this.sanitize(chunks);
-    
-    await vectorStore.addDocuments(sanitizedChunks);
-
-    console.log(`Successfully ingested ${filePath}`);
-  }
-
-  private async loadByExtension(path: string) {
-    const ext = path.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case "pdf": return new PDFLoader(path).load();
-      case "txt": return new TextLoader(path).load();
-      case "docx": return new DocxLoader(path).load();
-      default: throw new Error(`Unsupported format: ${ext}`);
-    }
-  }
-
-  private async generateSummary(docs: any[], path: string): Promise<SanitizedDocument> {
-    const fullText = docs.map(d => d.pageContent).join("\n");
-    const response = await this.model.invoke(
-      `Summarize this document for a student in the document's original language: ${fullText}`
+    this.vectorStore = new Chroma(
+      new OpenAIEmbeddings({
+        apiKey: process.env.OPENAI_API_KEY,
+        model: "text-embedding-3-small",
+      }),
+      {
+        collectionName: "my_document_collection",
+        url: process.env.CHROMA_URL ?? "http://localhost:8000",
+        collectionMetadata: { "hnsw:space": "cosine" },
+      },
     );
-
-    return {
-      pageContent: response.content as string,
-      metadata: {
-        source: path,
-        shortName: path.split(/[\\/]/).pop() || "Unknown",
-        isSummary: true,
-        pageNumber: 1
-      }
-    };
   }
 
-  private sanitize(chunks: any[]): SanitizedDocument[] {
-    return chunks.map(chunk => ({
-      ...chunk,
-      metadata: {
-        source: chunk.metadata.source,
-        isSummary: false,
-        shortName: chunk.metadata.source?.split(/[\\/]/).pop() || "Unknown",
-        pageNumber: chunk.metadata.loc?.pageNumber || chunk.metadata.page || 1,
-        lineFrom: chunk.metadata.loc?.lines?.from,
-        lineTo: chunk.metadata.loc?.lines?.to
-      }
-    }));
+  // Processes a single uploaded file and stores it in chroma.
+  async processAndIngest(
+    filePath: string,
+    fileName: string,
+    storageKey: string,
+    sessionId: number,
+  ): Promise<string> {
+    console.log(`ingest "${fileName}", session ${sessionId}`);
+
+    // Load raw pages from the file based on extension
+    const rawDocs = await loadByExtension(filePath);
+
+    // Generate and store a summary chunk (for summary user intent)
+    const summaryDoc = await generateSummary(rawDocs, fileName, storageKey, sessionId, this.model);
+    await this.vectorStore.addDocuments([summaryDoc]);
+
+    // Split into overlapping chunks, sanitize metadata, store in chroma
+    const chunks = await splitDocuments(rawDocs);
+    const sanitized = sanitizeChunks(chunks, fileName, storageKey, sessionId);
+    await this.vectorStore.addDocuments(sanitized);
+
+    console.log(`ingest done: ${sanitized.length} chunks + 1 summary`);
+    return summaryDoc.pageContent;
+  }
+
+  // Handles a single chat message - rewrites query for multi-turn context,
+  // classifies user intent, retrieves chunks scoped to chat session and
+  // generates the final answer
+  async chat(
+    query: string,
+    sessionId: number,
+    chatHistory: ChatHistoryMessage[],
+  ): Promise<AiChatResponse> {
+    const standaloneQuery = await rewriteQueryWithHistory(query, chatHistory, this.model);
+    const intent = await getQueryIntent(standaloneQuery, this.model);
+    const retrievalResult = await runRetrieval(standaloneQuery, sessionId, intent, this.vectorStore);
+
+    if (typeof retrievalResult === "string") {
+      return { answer: retrievalResult, sources: [] };
+    }
+
+    return generateAnswer(retrievalResult, query, chatHistory, this.model);
   }
 }

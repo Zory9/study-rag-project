@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -6,13 +7,15 @@ using System.Text;
 
 namespace RagProject.Services
 {
-    public class JwtService : IJwtService
+    public class JwtService(IConfiguration configuration) : IJwtService
     {
-        private readonly string securityKey = "e3d6623891a3c57d8fec2ff34d9f7c91adb38a43a2b8ac7cf1d62b65a2f23c0f";
+        private readonly string _securityKey = configuration["Appsettings:JwtKey"] ?? throw new InvalidOperationException("JWT key is not configured.");
+        private readonly string _issuer = configuration["Appsettings:JwtIssuer"] ?? throw new InvalidOperationException("JWT issuer is not configured.");
+        private readonly string _audience = configuration["Appsettings:JwtAudience"] ?? throw new InvalidOperationException("JWT audience is not configured.");
 
         public string GenerateAcessToken(int userID)
         {
-            SymmetricSecurityKey symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(securityKey));
+            SymmetricSecurityKey symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_securityKey));
             SigningCredentials credentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256Signature);
 
             Claim[] claims =
@@ -23,11 +26,11 @@ namespace RagProject.Services
 
             JwtHeader header = new JwtHeader(credentials);
             JwtPayload payload = new JwtPayload(
-                issuer: "https://localhost:7167/",
-                audience: "your-api-identifier",
+                issuer: _issuer,
+                audience: _audience,
                 claims: claims,
                 notBefore: null,
-                expires: DateTime.Now.AddMinutes(15)
+                expires: DateTime.UtcNow.AddDays(1)
             );
 
             JwtSecurityToken accessToken = new JwtSecurityToken(header, payload);
@@ -55,14 +58,16 @@ namespace RagProject.Services
         public JwtSecurityToken Verify(string jwtToken)
         {
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
-            byte[] key = Encoding.ASCII.GetBytes(securityKey);
+            byte[] key = Encoding.UTF8.GetBytes(_securityKey);
 
             handler.ValidateToken(jwtToken, new TokenValidationParameters
             {
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuerSigningKey = true,
-                ValidateIssuer = false,
-                ValidateAudience = false,
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidIssuer = _issuer,
+                ValidAudience = _audience,
             }, out SecurityToken validatedToken);
 
             return (JwtSecurityToken)validatedToken;

@@ -5,8 +5,10 @@ namespace RagProject.Services
 {
     public interface IChatService
     {
-        Task<ChatSession> CreateSessionAsync(int userId, string title);
-        Task<StudyDocument> UploadAndLinkDocumentAsync(int sessionId, IFormFile file, int userId);
-        Task<string> AskQuestionAsync(int sessionId, string message);
+        Task<ChatSessionDTO> CreateSessionAsync(int userId, string title);
+        Task<List<ChatSessionDTO>> GetSessionsAsync(int userId);
+        Task<ChatSessionDetailDTO> GetSessionDetailAsync(int sessionId, int userId);
+        Task<StudyDocumentDTO> UploadAndLinkDocumentAsync(int sessionId, IFormFile file, int userId);
+        Task<ChatMessageDTO> AskQuestionAsync(int sessionId, string message, int userId);
     }
 }

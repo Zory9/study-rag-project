@@ -47,7 +47,7 @@ namespace RagProject.Services
             await _refreshTokenService.AddRefreshTokenAsync(new RefreshToken()
             {
                 Token = refreshToken,
-                ExpiryDate = DateTime.Now.AddDays(1),
+                ExpiryDate = DateTime.UtcNow.AddDays(1),
                 UserId = user.Id
             });
 

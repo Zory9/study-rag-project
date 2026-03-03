@@ -1,210 +1,104 @@
-import * as dotenv from "dotenv";
-import { DirectoryLoader } from "@langchain/classic/document_loaders/fs/directory";
-import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
-import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import type { SanitizedDocument } from "../types.js";
+import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
 import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { ChatOpenAI } from "@langchain/openai";
+import type { SanitizedDocument } from "../types.js";
 
-dotenv.config();
-
-async function loadDocuments(): Promise<any> {
-  const loader = new DirectoryLoader("./documents", {
-    ".txt": (path) => new TextLoader(path),
-    ".pdf": (path) => new PDFLoader(path),
-  });
-
-  const documents = await loader.load();
-  return documents;
+// Loads document based on its extension.
+export async function loadByExtension(filePath: string): Promise<any[]> {
+  const ext = filePath.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "pdf": return new PDFLoader(filePath).load();
+    case "txt": return new TextLoader(filePath).load();
+    case "docx": return new DocxLoader(filePath).load();
+    default: throw new Error(`Unsupported format: ${ext}`);
+  }
 }
 
-async function splitDocuments(
-  documents: any,
+// Splits raw documents into overlapping chunks for embedding.
+export async function splitDocuments(
+  documents: any[],
   chunkSize = 800,
   chunkOverlap = 50,
 ): Promise<any[]> {
-  const textSplitter = new RecursiveCharacterTextSplitter({
-    chunkSize: chunkSize,
-    chunkOverlap: chunkOverlap,
-  });
-  const chunks = await textSplitter.splitDocuments(documents);
-  return chunks;
+  const splitter = new RecursiveCharacterTextSplitter({ chunkSize, chunkOverlap });
+  return splitter.splitDocuments(documents);
 }
 
-function sanitizeChunks(chunks: any[]): SanitizedDocument[] {
-  const sanitizedChunks = chunks.map((chunk: any) => {
-    // extract relevant metadata fields and flatten them into top-level metadata
-    const fileName = chunk.metadata.source
-      ? chunk.metadata.source.split(/[\\/]/).pop()
-      : "Unknown";
 
-    const extractedMetadata = {
-      source: chunk.metadata.source,
-      shortName: chunk.metadata.shortName?.toLowerCase() || fileName.toLowerCase(),
-      isSummary: chunk.metadata.isSummary || false,
-      totalPages: chunk.metadata.pdf?.totalPages,
-      pageNumber: chunk.metadata.loc?.pageNumber || chunk.metadata.page || 1,
+// Overlays session-scoped metadata on chunks 
+// also strips non-primitive values that chroma can't store (prevents chroma errors).
+export function sanitizeChunks(
+  chunks: any[],
+  fileName: string,
+  storageKey: string,
+  sessionId: number,
+): SanitizedDocument[] {
+  return chunks.map((chunk) => {
+    const extracted = {
+      // session-scoped fields
+      source: fileName,
+      fileName: fileName,
+      storageKey: storageKey,
+      sessionId: sessionId,
+      isSummary: false,
+      // page/line location
+      pageNumber: chunk.metadata.loc?.pageNumber ?? chunk.metadata.page ?? 1,
       lineFrom: chunk.metadata.loc?.lines?.from,
       lineTo: chunk.metadata.loc?.lines?.to,
+      // PDF-specific extra metadata
+      totalPages: chunk.metadata.pdf?.totalPages,
       title: chunk.metadata.pdf?.info?.Title,
     };
 
-    const combined = { ...chunk.metadata, ...extractedMetadata };
+    // Merge extracted chunks on top of raw chunk metadata 
+    // and strip non-primitive values
+    const combined = { ...chunk.metadata, ...extracted };
+    const cleaned = sanitizeMetadata(combined);
 
-    // sanitize and keep only string, number, boolean values; and remove null/undefined (prevents Chroma errors)
-    return {
-      ...chunk,
-      metadata: Object.fromEntries(
-        Object.entries(combined).filter(
-          ([_, value]) =>
-            (typeof value === "string" ||
-              typeof value === "number" ||
-              typeof value === "boolean") &&
-            value !== null &&
-            value !== undefined,
-        ),
-      ),
-    };
+    return { ...chunk, metadata: cleaned } as SanitizedDocument;
   });
-
-  return sanitizedChunks;
 }
 
-async function createVectorStore(chunks: any[]): Promise<Chroma> {
-  const embeddingModel = new OpenAIEmbeddings({
-    apiKey: process.env.OPENAI_API_KEY,
-    model: "text-embedding-3-small",
-  });
-
-  const vectorStore = await Chroma.fromDocuments(
-    chunks,
-    embeddingModel,
-    {
-      collectionName: "my_document_collection",
-      url: "http://localhost:8000",
-      collectionMetadata: {
-        "hnsw:space": "cosine",
-      },
-    },
+// Generate in advance a document summary stored as a special
+// chunk (isSummary=true) so retrieval can fetch it 
+// when user intent is for an overview.
+export async function generateSummary(
+  docs: any[],
+  fileName: string,
+  storageKey: string,
+  sessionId: number,
+  model: ChatOpenAI,
+): Promise<SanitizedDocument> {
+  const fullText = docs.map((d) => d.pageContent).join("\n");
+  const response = await model.invoke(
+    `Summarize this document for a student in the document's original language:\n\n${fullText}`,
   );
-  return vectorStore;
+
+  return {
+    pageContent: response.content as string,
+    metadata: sanitizeMetadata({
+      source: fileName,
+      fileName: fileName,
+      storageKey: storageKey,
+      sessionId: sessionId,
+      isSummary: true,
+      pageNumber: 0,
+      title: `Summary of ${fileName}`,
+    }) as SanitizedDocument["metadata"],
+  };
 }
 
-export async function ingestFiles() {
-  const allDocs = await loadDocuments();
-
-  // group documents by their source file path
-  const docsBySource = allDocs.reduce((acc: any, doc: any) => {
-    const source = doc.metadata.source;
-    if (!acc[source]) acc[source] = [];
-    acc[source].push(doc);
-    return acc;
-  }, {});
-
-  const model = new ChatOpenAI({ modelName: "gpt-4o", temperature: 0 });
-  const allSummaryDocs = [];
-  const allChunks: any[] = [];
-
-  // process each file individually
-  for (const source in docsBySource) {
-    const fileDocs = docsBySource[source];
-    const fullText = fileDocs.map((d: any) => d.pageContent).join("\n");
-
-    console.log(`Generating summary for: ${source}`);
-
-    // generate summary for this specific file
-    const summaryResponse = await model.invoke(
-      `Summarize this document in 3-5 key paragraphs for a student. 
-       Answer in the language of the document: ${fullText}`,
-    );
-
-    allSummaryDocs.push({
-      pageContent: summaryResponse.content,
-      metadata: {
-        source: source,
-        shortName: source.split(/[\\/]/).pop()?.toLowerCase() || "unknown",
-        isSummary: true,
-        pageNumber: 0,
-        title: `Summary of ${source.split(/[\\/]/).pop()}`,
-      },
-    });
-
-    // create normal chunks for this specific file
-    const fileChunks = await splitDocuments(fileDocs);
-    allChunks.push(...fileChunks);
-  }
-
-  const sanitizedChunks = sanitizeChunks(allChunks);
-  // create vector store with both summaries and chunks
-  const finalDocsToUpload = [...allSummaryDocs, ...sanitizedChunks];
-
-  console.log(finalDocsToUpload.map((d) => d.metadata).filter((m) => m.isSummary)); // Log metadata of sanitized docs for debugging
-
-  await createVectorStore(finalDocsToUpload);
-  console.log("Ingestion complete!");
+// Strips any non-primitive value (objects, arrays, null, undefined) from a
+// metadata object so chroma never receives a value it cannot store.
+function sanitizeMetadata(raw: Record<string, unknown>): SanitizedDocument["metadata"] {
+  return Object.fromEntries(
+    Object.entries(raw).filter(
+      ([, v]) =>
+        (typeof v === "string" || typeof v === "number" || typeof v === "boolean") &&
+        v !== null &&
+        v !== undefined,
+    ),
+  ) as SanitizedDocument["metadata"];
 }
-
-// uncomment later for testing individual file ingestion
-// async function createVectorStoreFinal(summary: any, chunks: any[]): Promise<Chroma> {
-//   const embeddingModel = new OpenAIEmbeddings({
-//     apiKey: process.env.OPENAI_API_KEY,
-//     model: "text-embedding-3-small",
-//   });
-
-//   const vectorStore = new Chroma(embeddingModel, {
-//     collectionName: "my_document_collection",
-//     url: "http://localhost:8000",
-//     collectionMetadata: {
-//       "hnsw:space": "cosine",
-//     },
-//   });
-
-//   await vectorStore.addDocuments([summary, ...chunks])
-
-//   return vectorStore;
-// }
-
-// async function getDocumentsFromFile(filePath: string) {
-//   const extension = filePath.split('.').pop()?.toLowerCase();
-
-//   let loader;
-//   switch (extension) {
-//     case "pdf":
-//       loader = new PDFLoader(filePath);
-//       break;
-//     case "txt":
-//       loader = new TextLoader(filePath);
-//       break;
-//     case "docx":
-//       loader = new DocxLoader(filePath);
-//       break;
-//     default:
-//       throw new Error(`Unsupported file type: ${extension}`);
-//   }
-
-//   return await loader.load();
-// }
-
-// export async function processSingleFile(filePath: string) {
-//   const fileDocs = await getDocumentsFromFile(filePath);
-
-//   const fullText = fileDocs.map((d) => d.pageContent).join("\n");
-//   const model = new ChatOpenAI({ modelName: "gpt-4o", temperature: 0 });
-//   const summaryResponse = await model.invoke(`Summarize this document: ${fullText}`);
-
-//   const summaryDoc = {
-//     pageContent: summaryResponse.content,
-//     metadata: {
-//       source: filePath,
-//       isSummary: true,
-//       shortName: filePath.split(/[\\/]/).pop()
-//     }
-//   };
-
-//   const chunks = await splitDocuments(fileDocs);
-//   const sanitizedChunks = sanitizeChunks(chunks);
-
-//   await createVectorStoreFinal(summaryDoc, sanitizedChunks);
-// }

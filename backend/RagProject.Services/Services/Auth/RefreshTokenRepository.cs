@@ -17,12 +17,13 @@ namespace RagProject.Services
             string refreshToken = _httpContextAccessor.HttpContext.Request.Cookies["RefreshToken"]!;
             RefreshToken storedToken = await _refreshTokenService.GetRefreshTokenAsync(refreshToken);
 
-            if (storedToken is null || storedToken.ExpiryDate < DateTime.Now || storedToken.IsRevoked)
+            if (storedToken is null || storedToken.ExpiryDate < DateTime.UtcNow || storedToken.IsRevoked)
             {
                 throw new Exception("Invalid or expired refresh token.");
             }
 
             storedToken.IsRevoked = true;
+            await _refreshTokenService.SaveChangesAsync();
 
             string newRefreshToken = _jwtService.GenerateRefreshToken(storedToken.UserId);
             string newAccessToken = _jwtService.GenerateAcessToken(storedToken.UserId);
@@ -30,7 +31,7 @@ namespace RagProject.Services
             RefreshToken newRefreshTokenEntity = await _refreshTokenService.AddRefreshTokenAsync(new RefreshToken()
             {
                 Token = newRefreshToken,
-                ExpiryDate = DateTime.Now.AddDays(7),
+                ExpiryDate = DateTime.UtcNow.AddDays(1),
                 UserId = storedToken.UserId,
             });
 

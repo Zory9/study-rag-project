@@ -10,14 +10,14 @@ namespace RagProject.Services
         {
             _httpContextAccessor.HttpContext.Response.Cookies.Append(name, value, new CookieOptions()
             {
-                HttpOnly = name == "AccessToken" ? true : false,
+                HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 Domain = "localhost",
                 Path = "/",
                 Expires = name == "AccessToken"
-                    ? DateTime.Now.AddSeconds(600)
-                    : DateTime.Now.AddDays(5),
+                    ? DateTime.UtcNow.AddDays(1)
+                    : DateTime.UtcNow.AddDays(7),
             });
         }
 

@@ -12,7 +12,7 @@ namespace RagProject.Services
         Task<User> GetCurrentUserAsync();   
         Task ValidateUserAsync(RegisterDTO registerDto);
         Task<bool> UserExistsAsync(string email);
-        bool AreFieldsEmpty(RegisterDTO registerDto);
+        bool AreFieldsFilled(RegisterDTO registerDto);
         bool ValidateEmailAndPassword(string email, string password);
         (byte[] hashedPassword, byte[] saltPassword) HashPassword(RegisterDTO registerDto);
         bool CheckPassword(User user, LoginDTO loginDto);

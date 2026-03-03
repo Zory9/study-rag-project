@@ -9,6 +9,6 @@ namespace RagProject.Data
         public int Id { get; set; }
 
         [Required]
-        public DateTime DateCreated { get; set; } = DateTime.Now;
+        public DateTime DateCreated { get; set; } = DateTime.UtcNow;
     }
 }

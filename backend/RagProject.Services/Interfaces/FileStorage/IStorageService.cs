@@ -1,12 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Http;
+using RagProject.Data;
 
-namespace RagProject.Services.Interfaces.FileStorage
+namespace RagProject.Services
 {
-    internal interface IStorageInterface
+    public interface IStorageService
     {
+        Task<string> SaveFileAsync(IFormFile file);
+
+        string GetPhysicalPath(string storageKey);
+
+        Task DeleteFileAsync(string storageKey);
     }
 }

@@ -49,14 +49,14 @@ namespace RagProject.Services
 
         public async Task ValidateUserAsync(RegisterDTO registerDto)
         {
-            if (!AreFieldsEmpty(registerDto)) throw new Exception("Enter data in all fields");
+            if (!AreFieldsFilled(registerDto)) throw new Exception("Enter data in all fields");
 
             if (await UserExistsAsync(registerDto.Email)) throw new Exception("User already exists");
 
             if (!ValidateEmailAndPassword(registerDto.Email, registerDto.Password)) throw new Exception("Invalid Email or Password");
         }
 
-        public bool AreFieldsEmpty(RegisterDTO registerDto)
+        public bool AreFieldsFilled(RegisterDTO registerDto)
         {
             if (string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Username) || string.IsNullOrWhiteSpace(registerDto.Password))
                 return false;

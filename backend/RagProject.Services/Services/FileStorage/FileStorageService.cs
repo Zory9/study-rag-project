@@ -10,7 +10,10 @@ namespace RagProject.Services
 
         public LocalStorageService(IConfiguration config)
         {
-            _storagePath = config["Storage:LocalPath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+            var rawPath = config["Storage:LocalPath"] ?? "Uploads";
+            _storagePath = Path.IsPathRooted(rawPath)
+                ? rawPath
+                : Path.Combine(Directory.GetCurrentDirectory(), rawPath);
             if (!Directory.Exists(_storagePath)) Directory.CreateDirectory(_storagePath);
         }
 
