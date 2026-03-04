@@ -1,28 +1,52 @@
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
 import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
+import { CSVLoader } from "@langchain/community/document_loaders/fs/csv";
+import { EPubLoader } from "@langchain/community/document_loaders/fs/epub";
+import { PPTXLoader } from "@langchain/community/document_loaders/fs/pptx";
+import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
+import { JSONLoader } from "@langchain/classic/document_loaders/fs/json";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChatOpenAI } from "@langchain/openai";
+import { PromptTemplate } from "@langchain/core/prompts";
+import type { Document } from "@langchain/core/documents";
 import type { SanitizedDocument } from "../types.js";
 
-// Loads document based on its extension.
-export async function loadByExtension(filePath: string): Promise<any[]> {
+// Loads a document from disk based on its file extension.
+export async function loadByExtension(filePath: string): Promise<Document[]> {
   const ext = filePath.split(".").pop()?.toLowerCase();
   switch (ext) {
-    case "pdf": return new PDFLoader(filePath).load();
-    case "txt": return new TextLoader(filePath).load();
-    case "docx": return new DocxLoader(filePath).load();
-    default: throw new Error(`Unsupported format: ${ext}`);
+    case "pdf":  return new PDFLoader(filePath).load();
+    case "docx":
+    case "doc":  return new DocxLoader(filePath).load();
+    case "pptx": return new PPTXLoader(filePath).load();
+    case "epub": return new EPubLoader(filePath).load();
+    case "csv":  return new CSVLoader(filePath).load();
+    case "tsv":  return new CSVLoader(filePath, { column: undefined, separator: "\t" } as any).load();
+    case "json": return new JSONLoader(filePath).load();
+    case "txt":
+    case "md":
+    case "mdx":  return new TextLoader(filePath).load();
+    default:
+      throw new Error(
+        `Unsupported file format ".${ext}". Supported: pdf, docx, doc, pptx, epub, csv, tsv, json, txt, md, mdx`,
+      );
   }
 }
 
-// Splits raw documents into overlapping chunks for embedding.
+// Splits raw documents into overlapping chunks using separators
+// that respect natural text boundaries
 export async function splitDocuments(
-  documents: any[],
-  chunkSize = 800,
-  chunkOverlap = 50,
-): Promise<any[]> {
-  const splitter = new RecursiveCharacterTextSplitter({ chunkSize, chunkOverlap });
+  documents: Document[],
+  chunkSize = 1000,
+  chunkOverlap = 150,
+): Promise<Document[]> {
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize,
+    chunkOverlap,
+    // Separator list so the splitter prefers structural boundaries
+    // over arbitrary character counts.
+    separators: ["\n\n\n", "\n\n", "\n", ". ", "? ", "! ", " ", ""],
+  });
   return splitter.splitDocuments(documents);
 }
 
@@ -30,7 +54,7 @@ export async function splitDocuments(
 // Overlays session-scoped metadata on chunks 
 // also strips non-primitive values that chroma can't store (prevents chroma errors).
 export function sanitizeChunks(
-  chunks: any[],
+  chunks: Document[],
   fileName: string,
   storageKey: string,
   sessionId: number,
@@ -39,9 +63,9 @@ export function sanitizeChunks(
     const extracted = {
       // session-scoped fields
       source: fileName,
-      fileName: fileName,
-      storageKey: storageKey,
-      sessionId: sessionId,
+      fileName,
+      storageKey,
+      sessionId,
       isSummary: false,
       // page/line location
       pageNumber: chunk.metadata.loc?.pageNumber ?? chunk.metadata.page ?? 1,
@@ -52,39 +76,44 @@ export function sanitizeChunks(
       title: chunk.metadata.pdf?.info?.Title,
     };
 
-    // Merge extracted chunks on top of raw chunk metadata 
-    // and strip non-primitive values
     const combined = { ...chunk.metadata, ...extracted };
-    const cleaned = sanitizeMetadata(combined);
-
-    return { ...chunk, metadata: cleaned } as SanitizedDocument;
+    return { ...chunk, metadata: sanitizeMetadata(combined) } as SanitizedDocument;
   });
 }
 
 // Generate in advance a document summary stored as a special
 // chunk (isSummary=true) so retrieval can fetch it 
-// when user intent is for an overview.
+// when user intent is for an overview of individual document.
 export async function generateSummary(
-  docs: any[],
+  docs: Document[],
   fileName: string,
   storageKey: string,
   sessionId: number,
-  model: ChatOpenAI,
 ): Promise<SanitizedDocument> {
-  const fullText = docs.map((d) => d.pageContent).join("\n");
-  const response = await model.invoke(
-    `Summarize this document for a student in the document's original language:\n\n${fullText}`,
+   const fullText = docs.map((d) => d.pageContent).join("\n\n");
+
+  const miniModel = new ChatOpenAI({ modelName: "gpt-4o-mini", temperature: 0 });
+  const prompt = PromptTemplate.fromTemplate(
+    `You are summarising an academic document called "{fileName}" for a study assistant.\n\n` +
+    `Write a comprehensive summary (3-5 paragraphs) in the document's original language.\n` +
+    `Cover all main topics, key facts, definitions and conclusions.\n\n` +
+    `DOCUMENT CONTENT:\n{content}\n\nSUMMARY:`,
+  );
+
+  const response = await miniModel.invoke(
+    await prompt.format({ fileName, content: fullText }),
   );
 
   return {
     pageContent: response.content as string,
     metadata: sanitizeMetadata({
       source: fileName,
-      fileName: fileName,
-      storageKey: storageKey,
-      sessionId: sessionId,
+      fileName,
+      storageKey,
+      sessionId,
       isSummary: true,
       pageNumber: 0,
+      totalPages: docs.length,
       title: `Summary of ${fileName}`,
     }) as SanitizedDocument["metadata"],
   };

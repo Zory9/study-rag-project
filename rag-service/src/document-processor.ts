@@ -3,7 +3,7 @@ import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { loadByExtension, splitDocuments, sanitizeChunks, generateSummary } from "./ingestion.js";
 import { runRetrieval } from "./retrieval.js";
-import { getQueryIntent, rewriteQueryWithHistory, generateAnswer } from "./answer-generation.js";
+import { getQueryIntent, rewriteQueryWithHistory, generateAnswer, generateMultiDocSummary } from "./answer-generation.js";
 import type { AiChatResponse, ChatHistoryMessage } from "../types.js";
 
 export class DocumentProcessor {
@@ -37,14 +37,16 @@ export class DocumentProcessor {
     // Load raw pages from the file based on extension
     const rawDocs = await loadByExtension(filePath);
 
-    // Generate and store a summary chunk (for summary user intent)
-    const summaryDoc = await generateSummary(rawDocs, fileName, storageKey, sessionId, this.model);
-    await this.vectorStore.addDocuments([summaryDoc]);
-
-    // Split into overlapping chunks, sanitize metadata, store in chroma
+    // Split into overlapping chunks and sanitize metadata
     const chunks = await splitDocuments(rawDocs);
     const sanitized = sanitizeChunks(chunks, fileName, storageKey, sessionId);
-    await this.vectorStore.addDocuments(sanitized);
+
+    // Generate and store a summary chunk (for summary user intent)
+    const [summaryDoc] = await Promise.all([
+      generateSummary(rawDocs, fileName, storageKey, sessionId),
+      this.vectorStore.addDocuments(sanitized),
+    ]);
+    await this.vectorStore.addDocuments([summaryDoc]);
 
     console.log(`ingest done: ${sanitized.length} chunks + 1 summary`);
     return summaryDoc.pageContent;
@@ -64,6 +66,10 @@ export class DocumentProcessor {
 
     if (typeof retrievalResult === "string") {
       return { answer: retrievalResult, sources: [] };
+    }
+
+    if (intent.type === "summary" && !intent.targetFile) {
+      return generateMultiDocSummary(retrievalResult, query, this.model);
     }
 
     return generateAnswer(retrievalResult, query, chatHistory, this.model);

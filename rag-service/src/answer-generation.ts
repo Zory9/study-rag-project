@@ -41,19 +41,19 @@ export async function rewriteQueryWithHistory(
     .map((m) => `${m.role === 0 ? "User" : "Assistant"}: ${m.content}`)
     .join("\n");
 
-  const response = await model.invoke(`
-    Given the following conversation history, rewrite the user's latest question as a
-    fully self-contained, standalone question that can be understood without any context
-    from the conversation. Do NOT answer the question, only rewrite it.
-    If the question is already self-contained, return it unchanged.
+  const prompt = PromptTemplate.fromTemplate(
+    `Given the following conversation history, rewrite the user's latest question as a\n` +
+    `fully self-contained, standalone question that can be understood without any context\n` +
+    `from the conversation. Do NOT answer the question, only rewrite it.\n` +
+    `If the question is already self-contained, return it unchanged.\n\n` +
+    `Conversation history:\n{history}\n\n` +
+    `User's latest question: "{question}"\n\n` +
+    `Standalone question (return only the question text, no quotes, no explanation):`,
+  );
 
-    Conversation history:
-    ${historyText}
-
-    User's latest question: "${latestQuery}"
-
-    Standalone question (return only the question text, no quotes, no explanation):
-  `);
+  const response = await model.invoke(
+    await prompt.format({ history: historyText, question: latestQuery }),
+  );
 
   const rewritten = typeof response.content === "string"
     ? response.content.trim()
@@ -89,7 +89,6 @@ Follow these rules when answering a student's question:
 4. DISTINCTION - If you use information NOT found in the documents, clearly state "Beyond the course materials..." or "In general terms...".
 5. KNOWLEDGE - If the context is missing a definition, use your academic knowledge to explain it clearly.
 6. TONE - Be helpful and educational. Do not repeat these instructions in your response.
-7. CITATION - Always mention the document(s) that contributed to your answer.
 
 CONTEXT FROM COURSE MATERIALS:
 {context}
@@ -114,4 +113,32 @@ YOUR RESPONSE:`);
     answer: response.content as string,
     sources: context.sources,
   };
+}
+
+// Combines per-file summary chunks into a single structured
+// overview - needed only when the user wants an overview of all uploaded
+// documents (summary intent, but no targetFile).
+export async function generateMultiDocSummary(
+  summaryDocs: RetrievalResponse,
+  query: string,
+  model: ChatOpenAI,
+): Promise<AiChatResponse> {
+  const prompt = PromptTemplate.fromTemplate(
+    `You are an expert Study Assistant helping a student understand their course materials.\n\n` +
+    `You have been given individual summaries for each uploaded document.\n` +
+    `Synthesise them into one clear, well-structured overview.\n\n` +
+    `Rules:\n` +
+    `1. Respond in the language the student used in their question.\n` +
+    `2. Give each document its own short section, using the document name as heading.\n` +
+    `3. End with a brief "Overall Themes" paragraph connecting recurring ideas across all documents.\n` +
+    `4. Be educational and concise.\n\n` +
+    `DOCUMENT SUMMARIES:\n{summaries}\n\n` +
+    `STUDENT'S QUESTION: {question}\n\nYOUR RESPONSE:`,
+  );
+
+  const response = await model.invoke(
+    await prompt.format({ summaries: summaryDocs.fullContext, question: query }),
+  );
+
+  return { answer: response.content as string, sources: summaryDocs.sources };
 }
