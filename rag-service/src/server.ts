@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express, { type Request, type Response, type NextFunction } from "express";
 import { DocumentProcessor } from "./document-processor.js";
-import type { IngestRequest, ChatRequest, IngestResponse } from "../types.js";
+import type { IngestRequest, ChatRequest, IngestResponse, StudyRequest, EvaluateRequest } from "../types.js";
 
 const app = express();
 app.use(express.json());
@@ -43,6 +43,59 @@ app.post("/chat", async (req: Request, res: Response, next: NextFunction) => {
 
     const result = await processor.chat(query, sessionId, chatHistory ?? []);
 
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Generates flashcards from the session's uploaded material.
+app.post("/flashcards", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId, count } = req.body as StudyRequest;
+
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId is required." });
+      return;
+    }
+
+    const result = await processor.flashCards(sessionId, count);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Generates a mixed multiple-choice + open-answer test
+// from the session's uploaded material.
+app.post("/test", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId, count } = req.body as StudyRequest;
+
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId is required." });
+      return;
+    }
+
+    const result = await processor.test(sessionId, count);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Evaluates a student's open-answer response against the reference answer. 
+// (multiple choice questions are graded on the client side)
+app.post("/evaluate", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { question, sampleAnswer, studentAnswer } = req.body as EvaluateRequest;
+
+    if (!question || !sampleAnswer || !studentAnswer) {
+      res.status(400).json({ error: "question, sampleAnswer and studentAnswer are required." });
+      return;
+    }
+
+    const result = await processor.evaluateAnswer(question, sampleAnswer, studentAnswer);
     res.status(200).json(result);
   } catch (err) {
     next(err);

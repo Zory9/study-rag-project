@@ -95,3 +95,83 @@ export interface AiChatResponse {
 export interface IngestResponse {
   summary: string;
 }
+
+/**
+ * Body sent by .NET to /flashcards and /test endpoints.
+ */
+export interface StudyRequest {
+  sessionId: number;
+  count?: number; // how many cards/questions to generate
+}
+
+/**
+ * A single flashcard containing a question on the front and answer on the back.
+ */
+export interface Flashcard {
+  front: string;
+  back: string;
+}
+
+/**
+ * Response from /flashcards endpoint.
+ */
+export interface FlashcardSet {
+  flashcards: Flashcard[];
+  sources: Citation[];
+}
+
+/**
+ * One option in a multiple-choice question.
+ */
+export interface McqOption {
+  label: string; // "A", "B", "C", "D"
+  text: string;
+}
+
+/** 
+ * A multiple-choice question. 
+ */
+export interface McqQuestion {
+  kind: "mcq";
+  question: string;
+  options: McqOption[];
+  correctLabel: string; // "A" or "B" or "C" or "D"
+  explanation: string;
+}
+
+/** 
+ * An open-answer question. 
+ */
+export interface OpenQuestion {
+  kind: "open";
+  question: string;
+  sampleAnswer: string;
+}
+
+export type TestQuestion = McqQuestion | OpenQuestion;
+
+/** 
+ * Response from /test endpoint. 
+ */
+export interface TestSet {
+  questions: TestQuestion[];
+  sources: Citation[];
+}
+
+/** 
+ * Body sent by .NET to /evaluate endpoint.
+ */
+export interface EvaluateRequest {
+  question: string; // the original open question
+  sampleAnswer: string; // the AI-generated sample answer for ref
+  studentAnswer: string; // what the student actually wrote
+}
+
+/** 
+ * Response from /evaluate endpoint. 
+ */
+export interface EvaluateResponse {
+  score: number; // 0-10
+  feedback: string; // feedback with explanation of what was correct/missing
+  isCorrect: boolean; // correctness flag with score >= 6
+}

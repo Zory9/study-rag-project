@@ -14,5 +14,7 @@ namespace RagProject.Data
         public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
 
         public ICollection<SessionDocument> SessionDocuments { get; set; } = new List<SessionDocument>();
+
+        public ICollection<StudySet> StudySets { get; set; } = new List<StudySet>();
     }
 }

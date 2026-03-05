@@ -57,14 +57,7 @@ namespace RagProject.Services
                         Role = m.Role,
                         Content = m.Content,
                         DateCreated = m.DateCreated,
-                        Sources = m.Sources.Select(s => new MessageSourceDTO
-                        {
-                            FileName = s.FileName,
-                            Page = s.Page,
-                            LineFrom = s.LineFrom,
-                            LineTo = s.LineTo,
-                            Snippet = s.Snippet
-                        }).ToList()
+                        Sources = MapMessageSources(m.Sources)
                     }).ToList(),
                 AttachedDocuments = session.SessionDocuments
                     .Where(sd => sd.StudyDocument != null)
@@ -181,14 +174,7 @@ namespace RagProject.Services
                 Content = aiData?.Answer ?? "Sorry, I couldn't process that.",
                 Role = MessageRole.Assistant,
                 DateCreated = DateTime.UtcNow,
-                Sources = aiData?.Sources?.Select(s => new MessageSource
-                {
-                    FileName = s.FileName,
-                    Page = s.Page,
-                    LineFrom = s.LineFrom,
-                    LineTo = s.LineTo,
-                    Snippet = s.Snippet
-                }).ToList() ?? new List<MessageSource>()
+                Sources = MapAiSourcesToMessageEntities(aiData?.Sources)
             };
 
             _dataContext.ChatMessages.Add(userMessage);
@@ -200,15 +186,181 @@ namespace RagProject.Services
                 Role = assistantMessage.Role,
                 Content = assistantMessage.Content,
                 DateCreated = assistantMessage.DateCreated,
-                Sources = assistantMessage.Sources.Select(s => new MessageSourceDTO
-                {
-                    FileName = s.FileName,
-                    Page = s.Page,
-                    LineFrom = s.LineFrom,
-                    LineTo = s.LineTo,
-                    Snippet = s.Snippet
-                }).ToList()
+                Sources = MapMessageSources(assistantMessage.Sources)
             };
         }
+
+        public async Task<FlashcardSetDTO> GenerateFlashcardsAsync(int sessionId, int userId, int count)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var ragResponse = await httpClient.PostAsJsonAsync("flashcards", new { sessionId, count });
+            ragResponse.EnsureSuccessStatusCode();
+
+            var ragData = await ragResponse.Content.ReadFromJsonAsync<RagFlashcardSetResponse>()
+                ?? new RagFlashcardSetResponse(new List<RagFlashcard>(), new List<AiSource>());
+
+            var studySet = new StudySet
+            {
+                Kind = StudySetKind.Flashcard,
+                ChatSessionId = sessionId,
+                DateCreated = DateTime.UtcNow,
+                Flashcards = ragData.Flashcards.Select(f => new Flashcard
+                {
+                    Front = f.Front,
+                    Back = f.Back,
+                    DateCreated = DateTime.UtcNow
+                }).ToList(),
+                Sources = MapAiSourcesToEntities(ragData.Sources)
+            };
+
+            _dataContext.StudySets.Add(studySet);
+            await _dataContext.SaveChangesAsync();
+
+            return new FlashcardSetDTO
+            {
+                StudySetId = studySet.Id,
+                DateCreated = studySet.DateCreated,
+                Flashcards = studySet.Flashcards.Select(f => new FlashcardDTO
+                {
+                    Id = f.Id,
+                    Front = f.Front,
+                    Back = f.Back
+                }).ToList(),
+                Sources = MapSources(studySet.Sources)
+            };
+        }
+
+        public async Task<TestSetDTO> GenerateTestAsync(int sessionId, int userId, int count)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var ragResponse = await httpClient.PostAsJsonAsync("test", new { sessionId, count });
+            ragResponse.EnsureSuccessStatusCode();
+
+            var ragData = await ragResponse.Content.ReadFromJsonAsync<RagTestSetResponse>()
+                ?? new RagTestSetResponse(new List<RagTestQuestion>(), new List<AiSource>());
+
+            var studySet = new StudySet
+            {
+                Kind = StudySetKind.Test,
+                ChatSessionId = sessionId,
+                DateCreated = DateTime.UtcNow,
+                TestQuestions = ragData.Questions.Select(q => new TestQuestion
+                {
+                    Kind = q.Kind == "mcq" ? TestQuestionKind.Mcq : TestQuestionKind.Open,
+                    Question = q.Question,
+                    CorrectLabel = q.CorrectLabel,
+                    Explanation = q.Explanation,
+                    SampleAnswer = q.SampleAnswer,
+                    DateCreated = DateTime.UtcNow,
+                    Options = q.Options?.Select(o => new McqOption
+                    {
+                        Label = o.Label,
+                        Text = o.Text,
+                        DateCreated = DateTime.UtcNow
+                    }).ToList() ?? new List<McqOption>()
+                }).ToList(),
+                Sources = MapAiSourcesToEntities(ragData.Sources)
+            };
+
+            _dataContext.StudySets.Add(studySet);
+            await _dataContext.SaveChangesAsync();
+
+            return new TestSetDTO
+            {
+                StudySetId = studySet.Id,
+                DateCreated = studySet.DateCreated,
+                Questions = studySet.TestQuestions.Select(q => new TestQuestionDTO
+                {
+                    Id = q.Id,
+                    Kind = q.Kind == TestQuestionKind.Mcq ? "mcq" : "open",
+                    Question = q.Question,
+                    CorrectLabel = q.CorrectLabel,
+                    Explanation = q.Explanation,
+                    SampleAnswer = q.SampleAnswer,
+                    Options = q.Options.Select(o => new McqOptionDTO
+                    {
+                        Label = o.Label,
+                        Text = o.Text
+                    }).ToList()
+                }).ToList(),
+                Sources = MapSources(studySet.Sources)
+            };
+        }
+
+        public async Task<EvaluateDTO> EvaluateAnswerAsync(int sessionId, int userId, EvaluateRequest request)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var question = await _dataContext.TestQuestions
+                .FirstOrDefaultAsync(q =>
+                    q.Id == request.QuestionId &&
+                    q.StudySetId == request.StudySetId &&
+                    q.StudySet!.ChatSessionId == sessionId)
+                ?? throw new KeyNotFoundException("Question not found.");
+
+            if (question.Kind != TestQuestionKind.Open || question.SampleAnswer == null)
+                throw new InvalidOperationException("Only open questions can be evaluated.");
+
+            var ragResponse = await httpClient.PostAsJsonAsync("evaluate", new
+            {
+                question = question.Question,
+                sampleAnswer = question.SampleAnswer,
+                studentAnswer = request.StudentAnswer
+            });
+            ragResponse.EnsureSuccessStatusCode();
+
+            var ragData = await ragResponse.Content.ReadFromJsonAsync<RagEvaluateResponse>()
+                ?? new RagEvaluateResponse(0, "Could not evaluate.", false);
+
+            return new EvaluateDTO
+            {
+                Score = ragData.Score,
+                Feedback = ragData.Feedback,
+                IsCorrect = ragData.IsCorrect
+            };
+        }
+
+        private static List<MessageSource> MapAiSourcesToMessageEntities(IEnumerable<AiSource>? sources) =>
+            sources?.Select(s => new MessageSource
+            {
+                FileName = s.FileName,
+                Page = s.Page,
+                LineFrom = s.LineFrom,
+                LineTo = s.LineTo,
+                Snippet = s.Snippet
+            }).ToList() ?? new List<MessageSource>();
+
+        private static List<MessageSourceDTO> MapMessageSources(IEnumerable<MessageSource> sources) =>
+            sources.Select(s => new MessageSourceDTO
+            {
+                FileName = s.FileName,
+                Page = s.Page,
+                LineFrom = s.LineFrom,
+                LineTo = s.LineTo,
+                Snippet = s.Snippet
+            }).ToList();
+
+        private static List<StudySetSource> MapAiSourcesToEntities(IEnumerable<AiSource> sources) =>
+            sources.Select(s => new StudySetSource
+            {
+                FileName = s.FileName,
+                Page = s.Page,
+                LineFrom = s.LineFrom,
+                LineTo = s.LineTo,
+                Snippet = s.Snippet,
+                DateCreated = DateTime.UtcNow
+            }).ToList();
+
+        private static List<StudySetSourceDTO> MapSources(IEnumerable<StudySetSource> sources) =>
+            sources.Select(s => new StudySetSourceDTO
+            {
+                FileName = s.FileName,
+                Page = s.Page,
+                LineFrom = s.LineFrom,
+                LineTo = s.LineTo,
+                Snippet = s.Snippet
+            }).ToList();
     }
 }

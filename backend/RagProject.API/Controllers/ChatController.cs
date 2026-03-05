@@ -68,5 +68,56 @@ namespace RagProject.API
             var answer = await chatService.AskQuestionAsync(sessionId, request.Message, currentUser.Id);
             return Ok(answer);
         }
+
+        [HttpPost("chat-session/{sessionId}/flashcards")]
+        public async Task<ActionResult<FlashcardSetDTO>> GenerateFlashcards(
+            int sessionId,
+            [FromQuery] int count = 10)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.GenerateFlashcardsAsync(sessionId, currentUser.Id, count);
+                return Ok(result);
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(503, $"RAG Service unavailable: {ex.Message}");
+            }
+        }
+
+        [HttpPost("chat-session/{sessionId}/test")]
+        public async Task<ActionResult<TestSetDTO>> GenerateTest(
+            int sessionId,
+            [FromQuery] int count = 10)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.GenerateTestAsync(sessionId, currentUser.Id, count);
+                return Ok(result);
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(503, $"RAG Service unavailable: {ex.Message}");
+            }
+        }
+
+        [HttpPost("chat-session/{sessionId}/evaluate")]
+        public async Task<ActionResult<EvaluateDTO>> EvaluateAnswer(
+            int sessionId,
+            [FromBody] EvaluateRequest request)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.EvaluateAnswerAsync(sessionId, currentUser.Id, request);
+                return Ok(result);
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(503, $"RAG Service unavailable: {ex.Message}");
+            }
+        }
     }
 }

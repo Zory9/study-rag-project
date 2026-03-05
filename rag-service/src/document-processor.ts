@@ -3,8 +3,8 @@ import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { loadByExtension, splitDocuments, sanitizeChunks, generateSummary } from "./ingestion.js";
 import { runRetrieval } from "./retrieval.js";
-import { getQueryIntent, rewriteQueryWithHistory, generateAnswer, generateMultiDocSummary } from "./answer-generation.js";
-import type { AiChatResponse, ChatHistoryMessage } from "../types.js";
+import { getQueryIntent, rewriteQueryWithHistory, generateAnswer, generateMultiDocSummary, generateFlashcards, generateTest, evaluateOpenAnswer } from "./answer-generation.js";
+import type { AiChatResponse, ChatHistoryMessage, FlashcardSet, TestSet, EvaluateResponse } from "../types.js";
 
 export class DocumentProcessor {
   private model: ChatOpenAI;
@@ -73,5 +73,40 @@ export class DocumentProcessor {
     }
 
     return generateAnswer(retrievalResult, query, chatHistory, this.model);
+  }
+
+  // Generates flashcards from the session's material.
+  async flashCards(sessionId: number, count = 10): Promise<FlashcardSet> {
+    const intent = { type: "specific" as const, targetFile: null };
+    const query = "key concepts, definitions and important facts";
+    const retrievalResult = await runRetrieval(query, sessionId, intent, this.vectorStore);
+
+    if (typeof retrievalResult === "string") {
+      return { flashcards: [], sources: [] };
+    }
+
+    return generateFlashcards(retrievalResult, count, this.model);
+  }
+
+  // Generates a mixed test from the session's material.
+  async test(sessionId: number, count = 10): Promise<TestSet> {
+    const intent = { type: "specific" as const, targetFile: null };
+    const query = "key concepts, definitions, facts and reasoning questions";
+    const retrievalResult = await runRetrieval(query, sessionId, intent, this.vectorStore);
+
+    if (typeof retrievalResult === "string") {
+      return { questions: [], sources: [] };
+    }
+
+    return generateTest(retrievalResult, count, this.model);
+  }
+
+  // Evaluates a student's open-answer response using the LLM model.
+  async evaluateAnswer(
+    question: string,
+    sampleAnswer: string,
+    studentAnswer: string,
+  ): Promise<EvaluateResponse> {
+    return evaluateOpenAnswer(question, sampleAnswer, studentAnswer, this.model);
   }
 }

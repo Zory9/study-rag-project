@@ -11,6 +11,11 @@ namespace RagProject.Data
         public DbSet<MessageSource> MessageSources { get; set; }
         public DbSet<ChatSession> ChatSessions { get; set; }
         public DbSet<SessionDocument> SessionDocuments { get; set; }
+        public DbSet<StudySet> StudySets { get; set; }
+        public DbSet<Flashcard> Flashcards { get; set; }
+        public DbSet<TestQuestion> TestQuestions { get; set; }
+        public DbSet<McqOption> McqOptions { get; set; }
+        public DbSet<StudySetSource> StudySetSources { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -75,6 +80,44 @@ namespace RagProject.Data
             modelBuilder.Entity<ChatMessage>()
                 .Property(c => c.Role)
                 .HasConversion<int>();
+
+            modelBuilder.Entity<StudySet>()
+                .HasOne(ss => ss.ChatSession)
+                .WithMany(s => s.StudySets)
+                .HasForeignKey(ss => ss.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StudySet>()
+                .Property(ss => ss.Kind)
+                .HasConversion<int>();
+
+            modelBuilder.Entity<Flashcard>()
+                .HasOne(f => f.StudySet)
+                .WithMany(ss => ss.Flashcards)
+                .HasForeignKey(f => f.StudySetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TestQuestion>()
+                .HasOne(q => q.StudySet)
+                .WithMany(ss => ss.TestQuestions)
+                .HasForeignKey(q => q.StudySetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TestQuestion>()
+                .Property(q => q.Kind)
+                .HasConversion<int>();
+
+            modelBuilder.Entity<McqOption>()
+                .HasOne(o => o.TestQuestion)
+                .WithMany(q => q.Options)
+                .HasForeignKey(o => o.TestQuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StudySetSource>()
+                .HasOne(s => s.StudySet)
+                .WithMany(ss => ss.Sources)
+                .HasForeignKey(s => s.StudySetId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
