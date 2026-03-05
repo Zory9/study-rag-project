@@ -94,10 +94,11 @@ export async function generateSummary(
 
   const miniModel = new ChatOpenAI({ modelName: "gpt-4o-mini", temperature: 0 });
   const prompt = PromptTemplate.fromTemplate(
-    `You are summarising an academic document called "{fileName}" for a study assistant.\n\n` +
-    `Write a comprehensive summary (3-5 paragraphs) in the document's original language.\n` +
-    `Cover all main topics, key facts, definitions and conclusions.\n\n` +
-    `DOCUMENT CONTENT:\n{content}\n\nSUMMARY:`,
+    `You are summarising an academic document called "{fileName}" for a study assistant.
+    Write a comprehensive summary (3-5 paragraphs) in the document's original language.
+    Cover all main topics, key facts, definitions and conclusions.
+    
+    DOCUMENT CONTENT:\n{content}\n\nSUMMARY:`,
   );
 
   const response = await miniModel.invoke(

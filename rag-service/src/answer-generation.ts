@@ -42,13 +42,15 @@ export async function rewriteQueryWithHistory(
     .join("\n");
 
   const prompt = PromptTemplate.fromTemplate(
-    `Given the following conversation history, rewrite the user's latest question as a\n` +
-    `fully self-contained, standalone question that can be understood without any context\n` +
-    `from the conversation. Do NOT answer the question, only rewrite it.\n` +
-    `If the question is already self-contained, return it unchanged.\n\n` +
-    `Conversation history:\n{history}\n\n` +
-    `User's latest question: "{question}"\n\n` +
-    `Standalone question (return only the question text, no quotes, no explanation):`,
+    `Given the following conversation history, rewrite the user's latest question as a
+    fully self-contained, standalone question that can be understood without any context
+    from the conversation. 
+    Do NOT answer the question, only rewrite it.
+    If the question is already self-contained, return it unchanged.
+
+    Conversation history: {history}\n\n
+    User's latest question: "{question}"\n\n
+    Standalone question (return only the question text, no quotes, no explanation):`,
   );
 
   const response = await model.invoke(

@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "ingest": "tsx main.ts ingest",
     "query": "tsx main.ts query"
   },
@@ -29,6 +30,7 @@
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "officeparser": "^3.3.0",
+    "okapibm25": "^1.4.1",
     "pdf-parse": "^1.1.1"
   }
 }

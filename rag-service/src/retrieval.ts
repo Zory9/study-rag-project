@@ -1,47 +1,8 @@
+import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import type { DocumentInterface } from "@langchain/core/documents";
 import type { QueryIntent, Citation, RetrievalResponse } from "../types.js";
 import type { Chroma } from "@langchain/community/vectorstores/chroma";
-
-// Client-side MMR implementation needed because langchain
-// chroma wrapper seems to not support mmr in typescript.
-function applyMMR(
-  docs: DocumentInterface[],
-  scores: number[],
-  k: number,
-  lambda: number,
-): DocumentInterface[] {
-  if (docs.length <= k) return docs;
-
-  const selected: number[] = [];
-  const remaining = docs.map((doc, i) => ({ doc, score: scores[i] ?? 0, i }));
-
-  while (selected.length < k && remaining.length > 0) {
-    let bestPos = 0;
-    let bestMMR = -Infinity;
-
-    for (let ci = 0; ci < remaining.length; ci++) {
-      const relevance = remaining[ci]!.score;
-
-      let maxRedundancy = 0;
-      for (const si of selected) {
-        const selWords = new Set(docs[si]!.pageContent.toLowerCase().split(/\s+/));
-        const candWords = remaining[ci]!.doc.pageContent.toLowerCase().split(/\s+/);
-        const intersection = candWords.filter((w) => selWords.has(w)).length;
-        const union = selWords.size + candWords.length - intersection;
-        const jaccard = union > 0 ? intersection / union : 0;
-        if (jaccard > maxRedundancy) maxRedundancy = jaccard;
-      }
-
-      const mmr = lambda * relevance - (1 - lambda) * maxRedundancy;
-      if (mmr > bestMMR) { bestMMR = mmr; bestPos = ci; }
-    }
-
-    selected.push(remaining[bestPos]!.i);
-    remaining.splice(bestPos, 1);
-  }
-
-  return selected.map((i) => docs[i]!);
-}
+import { applyMMR, reciprocalRankFusion } from "./utils.js";
 
 // Retrieves relevant chunks from Chroma scoped to a specific chat session.
 export async function runRetrieval(
@@ -64,21 +25,96 @@ export async function runRetrieval(
     filterClauses.push({ fileName: { $eq: intent.targetFile } });
   }
 
-  const filter = filterClauses.length === 1 ? filterClauses[0] : { $and: filterClauses };
+  const filter =
+    filterClauses.length === 1 ? filterClauses[0] : { $and: filterClauses };
 
   console.log("Chroma filter:", JSON.stringify(filter, null, 2));
 
-  // Summary queries hit a small pool, so we can use plain similarity.
-  // For specific queries, fetch 40 candidates with similarity scores then apply MMR
   let relevantDocs: DocumentInterface[];
+
   if (isSummaryQuery) {
+    // Summary pool is small (one chunk per file), so plain similarity is enough.
     relevantDocs = await vectorStore.similaritySearch(query, 10, filter);
   } else {
-    const candidatesWithScores = await vectorStore.similaritySearchWithScore(query, 40, filter);
-    const docs = candidatesWithScores.map(([doc]) => doc);
-    const scores = candidatesWithScores.map(([, score]) => score);
-    console.log(scores)
-    relevantDocs = applyMMR(docs, scores, 8, 0.6);
+    // Fetch all chunks for this session from chroma to run BM25
+    // on them alongside semantic search
+    const collection = await (vectorStore as any).ensureCollection();
+    // Also, obtain embeddings from the collection to pass them to MMR later to apply cosine similarity
+    const allDocsResult = await collection.get({
+      include: ["embeddings"],
+      where: filter,
+    });
+    const allEmbeddings: number[][] = allDocsResult.embeddings ?? [];
+    const allDocs: DocumentInterface[] = (
+      allDocsResult.documents as string[]
+    ).map((content: string, i: number) => ({
+      pageContent: content,
+      metadata: allDocsResult.metadatas[i] ?? {},
+    }));
+
+    // Embed the query to pass to MMR for similarity scoring
+    const queryEmbedding = await (vectorStore as any).embeddings.embedQuery(
+      query,
+    );
+
+    // Run vector search and BM25 (keyword-based search) in parallel.
+    const [similarityResults, bm25Results] = await Promise.all([
+      vectorStore.similaritySearchWithScore(query, 40, filter),
+      BM25Retriever.fromDocuments(allDocs, { k: 40 }).invoke(query),
+    ]);
+
+    const similarityDocs = similarityResults.map(([doc]) => doc);
+
+    // Merge both result sets into one pool keyed by pageContent and remove duplicates.
+    const poolMap = new Map<
+      string,
+      { doc: DocumentInterface; embedding?: number[] }
+    >();
+    for (const doc of [...similarityDocs, ...bm25Results]) {
+      if (!poolMap.has(doc.pageContent)) {
+        const embIdx = allDocs.findIndex(
+          (d) => d.pageContent === doc.pageContent,
+        );
+        const embedding = allEmbeddings[embIdx];
+        poolMap.set(
+          doc.pageContent,
+          embedding !== undefined ? { doc, embedding } : { doc },
+        );
+      }
+    }
+    const poolEntries = [...poolMap.values()];
+    const pool = poolEntries.map((e) => e.doc);
+    const poolEmbeddings = poolEntries
+      .map((e) => e.embedding)
+      .filter((e): e is number[] => !!e);
+    const embeddingsAvailable = poolEmbeddings.length === pool.length;
+    const poolIndex = new Map(pool.map((doc, i) => [doc.pageContent, i]));
+
+    // Build rank maps using the position in each result as the rank (0 = best).
+    const semanticRanks = new Map(
+      similarityDocs.map((doc, rank) => [poolIndex.get(doc.pageContent)!, rank]),
+    );
+    const bm25Ranks = new Map(
+      bm25Results.map((doc, rank) => [poolIndex.get(doc.pageContent)!, rank]),
+    );
+
+    // Fuse both ranked lists with RRF, sort by fused score, apply MMR for final result.
+    const fusedScores = reciprocalRankFusion(semanticRanks, bm25Ranks);
+    const fusedOrder = [...fusedScores.entries()]
+      .sort(([, a], [, b]) => b - a)
+      .map(([id]) => id);
+
+    const rerankedDocs = fusedOrder.map((i) => pool[i]!);
+    const rerankedScores = fusedOrder.map((i) => fusedScores.get(i)!);
+
+    relevantDocs = applyMMR(
+      rerankedDocs,
+      rerankedScores,
+      8,
+      0.6,
+      embeddingsAvailable ? poolEmbeddings : undefined,
+      embeddingsAvailable ? queryEmbedding : undefined,
+    );
   }
 
   if (relevantDocs.length === 0) {
@@ -97,7 +133,7 @@ export async function runRetrieval(
     .map((d) => {
       const label = d.metadata.fileName
         ? `[Document: ${d.metadata.fileName}]`
-        : "[Document]"
+        : "[Document]";
       return `${label}\n${d.pageContent}`;
     })
     .join("\n\n---\n\n");
