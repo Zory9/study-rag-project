@@ -40,6 +40,21 @@ namespace RagProject.API
             return Ok(session);
         }
 
+        [HttpDelete("chat-session/{sessionId}")]
+        public async Task<IActionResult> DeleteSession(int sessionId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                await chatService.DeleteSessionAsync(sessionId, currentUser.Id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
         [HttpPost("chat-session/{sessionId}/upload")]
         public async Task<ActionResult<StudyDocumentDTO>> UploadToSession(int sessionId, IFormFile file)
         {

@@ -71,6 +71,16 @@ namespace RagProject.Services
             };
         }
 
+        public async Task DeleteSessionAsync(int sessionId, int userId)
+        {
+            var session = await _dataContext.ChatSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId)
+                ?? throw new KeyNotFoundException("Session not found.");
+
+            _dataContext.ChatSessions.Remove(session);
+            await _dataContext.SaveChangesAsync();
+        }
+
         public async Task<StudyDocumentDTO> UploadAndLinkDocumentAsync(int sessionId, IFormFile file, int userId)
         {
             await VerifySessionOwnershipAsync(sessionId, userId);

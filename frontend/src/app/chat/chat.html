@@ -1,0 +1,168 @@
+<div class="app-container">
+    <kendo-drawer-container>
+        <kendo-drawer #drawer [(expanded)]="drawerExpanded" [items]="drawerItems" [mode]="drawerMode"
+            [mini]="drawerMini" [miniWidth]="48" [width]="260" (select)="onDrawerSelect($event)">
+
+            <ng-template kendoDrawerTemplate>
+                <div class="drawer-header">
+                    <div class="header-button" [class.expanded]="drawerExpanded" (click)="toggleDrawer()">
+                        <kendo-svgicon [icon]="sidebarIcon"></kendo-svgicon>
+                    </div>
+                    <div class="k-drawer-item header-button new-chat" (click)="openNewSessionDialog()">
+                        <kendo-svgicon [icon]="pencilIcon"></kendo-svgicon>
+                        @if (drawerExpanded) {
+                        <label>New Session</label>
+                        }
+                    </div>
+                </div>
+
+                @if (drawerExpanded) {
+                <div class="drawer-section-label">Sessions</div>
+                <div class="drawer-session-list">
+                    @for (session of sessions; track session.id) {
+                    <div class="drawer-session-item" [class.active]="session.id === activeSessionId"
+                        (click)="onSessionClick(session)">
+                        <span class="drawer-session-title">{{ session.title }}</span>
+                        <button kendoButton fillMode="flat" size="small" [svgIcon]="trashIcon" class="delete-btn"
+                            title="Delete" (click)="openDeleteSessionDialog($event, session.id)">
+                        </button>
+                    </div>
+                    }
+                    @if (sessions.length === 0) {
+                    <p class="drawer-empty">No sessions yet.</p>
+                    }
+                </div>
+
+                <div class="drawer-footer">
+                    @if (currentUser) {
+                    <div class="drawer-user">
+                        <span class="user-avatar">{{ currentUser.username[0].toUpperCase() }}</span>
+                        <span class="user-name">{{ currentUser.username }}</span>
+                    </div>
+                    }
+                    <button kendoButton fillMode="flat" size="small" (click)="logout()">Log out</button>
+                </div>
+                }
+            </ng-template>
+        </kendo-drawer>
+
+        <kendo-drawer-content>
+            <div class="chat-wrapper">
+
+                @if (activeSessionId === null) {
+                <div class="empty-state">
+                    <h2>Welcome to StudyRAG</h2>
+                    <p>Create a new session, upload your study materials, and start chatting.</p>
+                    <button kendoButton themeColor="primary" size="large" (click)="openNewSessionDialog()">
+                        Create your first session
+                    </button>
+                </div>
+                } @else {
+                <kendo-chat class="k-rounded-lg" [authorId]="localUser.id" [messages]="currentMessages" [fileSelectButton]="false"
+                    [messageBoxSettings]="{ mode: 'auto' }" [receiverMessageSettings]="receiverSettings"
+                    [messageContextMenuActions]="[]" [showUsername]="false" [style.flex]="'1'" [style.min-height]="'0'"
+                    [class.box-disabled]="attachedDocs.length <= 0" placeholder="Ask something about your documents…"
+                    (sendMessage)="onSendMessage($event)">
+                    <ng-template kendoChatHeaderTemplate>
+                        <input id="hidden-file-input" type="file" accept=".pdf,.txt,.md,.docx" hidden
+                            (change)="onFileSelected($event)" />
+
+                        <div class="chat-header">
+                            <div class="chat-header-left">
+                                <span class="session-name">{{ activeSession?.title }}</span>
+                                @if (attachedDocs.length > 0) {
+                                <div class="doc-chips">
+                                    @for (doc of attachedDocs; track doc.id) {
+                                    <span class="doc-chip" [title]="doc.fileSummary || doc.fileName"><kendo-svg-icon
+                                            [icon]="docIcon"></kendo-svg-icon> {{ doc.fileName
+                                        }}</span>
+                                    }
+                                </div>
+                                }
+                            </div>
+                            <div class="chat-header-right">
+                                <button kendoButton fillMode="outline" size="small" rounded="full" [svgIcon]="plusIcon"
+                                    title="Attach file" [disabled]="isUploading" (click)="triggerFileInput()">
+                                    @if (isUploading) {
+                                    <kendo-loader size="small"></kendo-loader>
+                                    }
+                                    Attach file
+                                </button>
+                            </div>
+                        </div>
+                    </ng-template>
+                    <ng-template kendoChatReceiverMessageTemplate let-message>
+                        @if (message.typing) {
+                        <div class="typing-indicator">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                        } @else {
+                        <div class="rag-message">
+                            <p class="rag-text">{{ message.text }}</p>
+                            @if (message.sources && message.sources.length > 0) {
+                            <button kendoButton class="sources-toggle"
+                                [svgIcon]="message.sourcesExpanded ? collapseIcon : expandIcon"
+                                (click)="toggleSources(message)">
+                                {{ message.sourcesExpanded ? 'Hide sources' : message.sources.length + ' source(s)' }}
+                            </button>
+                            @if (message.sourcesExpanded) {
+                            <div class="sources-list">
+                                @for (src of message.sources; track $index) {
+                                <div class="source-item">
+                                    <span class="source-file">{{ src.fileName }}</span>
+                                    @if (src.page) { <span class="source-meta">Page {{ src.page }}</span> }
+                                    @if (src.snippet) { <p class="source-snippet">"{{ src.snippet }}"</p> }
+                                </div>
+                                }
+                            </div>
+                            }
+                            }
+                        </div>
+                        }
+                    </ng-template>
+
+                    <ng-template kendoChatNoDataTemplate>
+                        <div class="chat-empty">
+                            <p>No messages yet - ask a question about your uploaded documents.</p>
+                            @if (attachedDocs.length === 0) {
+                            <button kendoButton fillMode="outline" [svgIcon]="attachIcon" [disabled]="isUploading"
+                                (click)="triggerFileInput()">Attach a document
+                                first</button>
+                            }
+                        </div>
+                    </ng-template>
+
+                </kendo-chat>
+                }
+            </div>
+        </kendo-drawer-content>
+
+    </kendo-drawer-container>
+</div>
+
+@if (showNewSessionDialog) {
+<kendo-dialog title="New Session" [width]="400" (close)="showNewSessionDialog = false">
+    <div class="k-d-flex k-flex-col k-gap-3">
+        <kendo-label text="Session title">
+            <kendo-textbox [(ngModel)]="newSessionTitle" placeholder="e.g. Biology Chapter 5" size="large">
+            </kendo-textbox>
+        </kendo-label>
+    </div>
+    <kendo-dialog-actions>
+        <button kendoButton (click)="showNewSessionDialog = false">Cancel</button>
+        <button kendoButton themeColor="primary" (click)="confirmNewSession()">Create</button>
+    </kendo-dialog-actions>
+</kendo-dialog>
+}
+
+@if (confirmDeleteSession) {
+<kendo-dialog title="Delete Session" [width]="400" (close)="confirmDeleteSession = false; sessionToDeleteId = null">
+    <p>Are you sure you want to delete <strong>"{{ sessionToDeleteTitle }}"</strong>? This cannot be undone.</p>
+    <kendo-dialog-actions>
+        <button kendoButton (click)="confirmDeleteSession = false; sessionToDeleteId = null">Cancel</button>
+        <button kendoButton themeColor="error" (click)="deleteSession()">Delete</button>
+    </kendo-dialog-actions>
+</kendo-dialog>
+}

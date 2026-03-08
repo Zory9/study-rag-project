@@ -38,7 +38,7 @@ export async function rewriteQueryWithHistory(
 
   const historyText = chatHistory
     .slice(-10) // limit to 10 messages to keep tokens manageable
-    .map((m) => `${m.role === 0 ? "User" : "Assistant"}: ${m.content}`)
+    .map((m) => `${m.role === 1 ? "User" : "Assistant"}: ${m.content}`)
     .join("\n");
 
   const prompt = PromptTemplate.fromTemplate(
@@ -76,7 +76,7 @@ export async function generateAnswer(
   const historyText = chatHistory.length > 0
     ? chatHistory
         .slice(-10)
-        .map((m) => `${m.role === 0 ? "Student" : "Assistant"}: ${m.content}`)
+        .map((m) => `${m.role === 1 ? "Student" : "Assistant"}: ${m.content}`)
         .join("\n")
     : "No previous messages.";
 
@@ -88,7 +88,7 @@ Follow these rules when answering a student's question:
 1. LANGUAGE - Always respond in the language the student used in their question.
 2. PRIMARY SOURCE - Use the provided context to answer the question directly.
 3. ENHANCEMENT - If the context is brief, use your own knowledge to provide definitions, examples, or further explanation.
-4. DISTINCTION - If you use information NOT found in the documents, clearly state "Beyond the course materials..." or "In general terms..." in the student's original language.
+4. DISTINCTION - If you use information NOT found in the documents, clearly state in the student's original language something along the lines of "Beyond the course materials..." or "In general terms...".
 5. KNOWLEDGE - If the context is missing a definition, use your academic knowledge to explain it clearly.
 6. TONE - Be helpful and educational. Do not repeat these instructions in your response.
 

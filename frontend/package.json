@@ -1,0 +1,74 @@
+{
+  "name": "frontend",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/animations": "^21.2.1",
+    "@angular/common": "^20.3.0",
+    "@angular/compiler": "^20.3.0",
+    "@angular/core": "^20.3.0",
+    "@angular/forms": "^20.3.0",
+    "@angular/localize": "^21.2.1",
+    "@angular/platform-browser": "^20.3.0",
+    "@angular/router": "^20.3.0",
+    "@progress/kendo-angular-buttons": "^23.2.0",
+    "@progress/kendo-angular-common": "^23.2.0",
+    "@progress/kendo-angular-conversational-ui": "^23.2.0",
+    "@progress/kendo-angular-dialog": "^23.2.0",
+    "@progress/kendo-angular-icons": "^23.2.0",
+    "@progress/kendo-angular-indicators": "^23.2.0",
+    "@progress/kendo-angular-inputs": "^23.2.0",
+    "@progress/kendo-angular-intl": "^23.2.0",
+    "@progress/kendo-angular-l10n": "^23.2.0",
+    "@progress/kendo-angular-label": "^23.2.0",
+    "@progress/kendo-angular-layout": "^23.2.0",
+    "@progress/kendo-angular-menu": "^23.2.0",
+    "@progress/kendo-angular-navigation": "^23.2.0",
+    "@progress/kendo-angular-popup": "^23.2.0",
+    "@progress/kendo-angular-progressbar": "^23.2.0",
+    "@progress/kendo-angular-toolbar": "^23.2.0",
+    "@progress/kendo-angular-upload": "^23.2.0",
+    "@progress/kendo-angular-utils": "^23.2.0",
+    "@progress/kendo-drawing": "1.24.0",
+    "@progress/kendo-file-saver": "1.1.2",
+    "@progress/kendo-licensing": "1.10.1",
+    "@progress/kendo-svg-icons": "4.8.0",
+    "@progress/kendo-theme-material": "^13.0.1",
+    "@progress/kendo-theme-utils": "^13.0.1",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^20.3.10",
+    "@angular/cli": "^20.3.10",
+    "@angular/compiler-cli": "^20.3.0",
+    "@types/jasmine": "~5.1.0",
+    "jasmine-core": "~5.9.0",
+    "karma": "~6.4.0",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.0",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "typescript": "~5.9.2"
+  }
+}

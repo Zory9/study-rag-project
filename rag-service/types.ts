@@ -65,10 +65,10 @@ export interface IngestRequest {
 
 /**
  * A single message in the chat history passed to /chat.
- * 0 = User, 1 = Assistant
+ * 1 = User, 2 = Assistant
  */
 export interface ChatHistoryMessage {
-  role: 0 | 1;
+  role: 1 | 2;
   content: string;
 }
 
