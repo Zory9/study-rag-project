@@ -88,7 +88,7 @@ Follow these rules when answering a student's question:
 1. LANGUAGE - Always respond in the language the student used in their question.
 2. PRIMARY SOURCE - Use the provided context to answer the question directly.
 3. ENHANCEMENT - If the context is brief, use your own knowledge to provide definitions, examples, or further explanation.
-4. DISTINCTION - If you use information NOT found in the documents, clearly state in the student's original language something along the lines of "Beyond the course materials..." or "In general terms...".
+4. DISTINCTION - If you use information NOT found in the documents, clearly state in the student's original language that the provided information is beyond the attached documents.
 5. KNOWLEDGE - If the context is missing a definition, use your academic knowledge to explain it clearly.
 6. TONE - Be helpful and educational. Do not repeat these instructions in your response.
 
@@ -132,7 +132,7 @@ export async function generateMultiDocSummary(
     Rules:\n\n
     1. Respond in the language the student used in their question.
     2. Give each document its own short section, using the document name as heading.
-    3. End with a brief "Overall Themes" paragraph connecting recurring ideas across all documents.
+    3. End with a brief paragraph about the overall themes, connecting recurring ideas across all documents.
     4. Be educational and concise.\n\n
     DOCUMENT SUMMARIES:\n{summaries}\n\n
     STUDENT'S QUESTION: {question}\n\nYOUR RESPONSE:`,
@@ -160,7 +160,8 @@ export async function generateFlashcards(
     3. Front: a short, clear question or prompt (one sentence max).
     4. Back: a concise but complete answer (1-3 sentences).
     5. Cover a variety of topics from the material — do not repeat the same concept.
-    6. Respond ONLY with valid JSON — no markdown, no code fences:\n\n
+    6. Respond in the language used in the study documents.
+    7. Respond ONLY with valid JSON — no markdown, no code fences:\n\n
     [{{"front":"...","back":"..."}}, ...]
     \n\nMATERIAL: {context}`,
   );
@@ -194,7 +195,8 @@ export async function generateTest(
     4. For open-answer - provide a sample answer the student can compare against.
     5. Questions must cover distinct concepts - no repetition.
     6. Vary difficulty: some factual recall, some application/reasoning.
-    7. Respond ONLY with valid JSON — no markdown, no code fences — matching this schema exactly:
+    7. Respond in the language used in the study documents.
+    8. Respond ONLY with valid JSON — no markdown, no code fences — matching this schema exactly:
     \n\n[
       {{"kind":"mcq","question":"...","options":[{{"label":"A","text":"..."}},{{"label":"B","text":"..."}},{{"label":"C","text":"..."}},{{"label":"D","text":"..."}}],"correctLabel":"A","explanation":"..."}},
       {{"kind":"open","question":"...","sampleAnswer":"..."}}
@@ -231,7 +233,8 @@ export async function evaluateOpenAnswer(
     1. Score the answer from 0 to 10 based on correctness, completeness and clarity.
     2. Write 2-4 sentences of constructive feedback: acknowledge what was correct, then explain what was missing or incorrect.
     3. Be encouraging but honest.
-    4. Respond ONLY with valid JSON — no markdown, no code fences:
+    4. Respond in the language used in the student's answer.
+    5. Respond ONLY with valid JSON — no markdown, no code fences:
     {{"score": <number 0-10>, "feedback": "<string>"}}`,
   );
 

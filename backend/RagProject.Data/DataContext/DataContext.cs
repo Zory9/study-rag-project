@@ -14,6 +14,7 @@ namespace RagProject.Data
         public DbSet<StudySet> StudySets { get; set; }
         public DbSet<Flashcard> Flashcards { get; set; }
         public DbSet<TestQuestion> TestQuestions { get; set; }
+        public DbSet<TestQuestionAttempt> TestQuestionAttempts { get; set; }
         public DbSet<McqOption> McqOptions { get; set; }
         public DbSet<StudySetSource> StudySetSources { get; set; }
 
@@ -118,6 +119,23 @@ namespace RagProject.Data
                 .WithMany(ss => ss.Sources)
                 .HasForeignKey(s => s.StudySetId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TestQuestionAttempt>()
+                .HasOne(a => a.StudySet)
+                .WithMany(ss => ss.Attempts)
+                .HasForeignKey(a => a.StudySetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TestQuestionAttempt>()
+                .HasOne(a => a.TestQuestion)
+                .WithMany(q => q.Attempts)
+                .HasForeignKey(a => a.TestQuestionId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Each question can only have one attempt per study set
+            modelBuilder.Entity<TestQuestionAttempt>()
+                .HasIndex(a => new { a.StudySetId, a.TestQuestionId })
+                .IsUnique();
         }
     }
 }

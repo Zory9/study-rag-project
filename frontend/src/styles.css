@@ -3,5 +3,32 @@ body {
   margin: 0;
   color: #e6edf3;
   font-family: 'Open Sans', Helvetica, Arial, sans-serif;
-  background: linear-gradient(266deg, color-mix(in srgb, var(--kendo-color-series-e-subtler) 8%, transparent) 18.06%, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 34.58%),linear-gradient(215deg, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 26.58%, color-mix(in srgb, var(--kendo-color-series-d-subtler) 8%, transparent) 76.24%, color-mix(in srgb, var(--kendo-color-app-surface) 0%, transparent) 124.43%),linear-gradient(107deg, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 28.34%, color-mix(in srgb, var(--kendo-color-primary) 8%, transparent) 57.43%, color-mix(in srgb, var(--kendo-color-primary) 8%, transparent) 71.97%,  color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 101.06%), var(--kendo-color-app-surface);
+  background: linear-gradient(266deg, color-mix(in srgb, var(--kendo-color-series-e-subtler) 8%, transparent) 18.06%, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 34.58%), linear-gradient(215deg, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 26.58%, color-mix(in srgb, var(--kendo-color-series-d-subtler) 8%, transparent) 76.24%, color-mix(in srgb, var(--kendo-color-app-surface) 0%, transparent) 124.43%), linear-gradient(107deg, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 28.34%, color-mix(in srgb, var(--kendo-color-primary) 8%, transparent) 57.43%, color-mix(in srgb, var(--kendo-color-primary) 8%, transparent) 71.97%, color-mix(in srgb, var(--kendo-color-app-surface) 4%, transparent) 101.06%), var(--kendo-color-app-surface);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--kendo-color-on-app-surface) 25%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--kendo-color-on-app-surface) 25%, transparent);
+  border-radius: 99px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--kendo-color-on-app-surface) 45%, transparent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }

@@ -4,6 +4,7 @@ import { Login } from './login/login';
 import { Signup } from './signup/signup';
 import { AuthGuard } from './auth.guard';
 import { Chat } from './chat/chat';
+import { Study } from './study/study';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'signup', pathMatch: 'full' },
@@ -25,6 +26,11 @@ export const routes: Routes = [
   {
     path: 'chat',
     component: Chat,
+    canActivate: [AuthGuard],
+  },
+  {
+    path: 'study',
+    component: Study,
     canActivate: [AuthGuard],
   },
 ];

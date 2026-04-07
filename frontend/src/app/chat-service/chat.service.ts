@@ -1,7 +1,19 @@
 import { Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, noop } from 'rxjs';
 import { HttpService } from '../@backend/services/http.service';
-import { ChatMessageDTO, ChatSessionDetailDTO, ChatSessionDTO, StudyDocumentDTO } from '../@backend/models/chat';
+import {
+  ChatMessageDTO,
+  ChatSessionDetailDTO,
+  ChatSessionDTO,
+  EvaluateDTO,
+  EvaluateRequestDTO,
+  FlashcardSetDTO,
+  SaveAttemptRequestDTO,
+  SessionStudySetsDTO,
+  StudyDocumentDTO,
+  TestProgressDTO,
+  TestSetDTO,
+} from '../@backend/models/chat';
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
@@ -54,5 +66,82 @@ export class ChatService {
     } catch {
       return false;
     }
+  }
+
+  public async generateFlashcards(sessionId: number, count = 10): Promise<FlashcardSetDTO | null> {
+    try {
+      return await firstValueFrom(this.http.generateFlashcards(sessionId, count));
+    } catch {
+      return null;
+    }
+  }
+
+  public async generateTest(sessionId: number, count = 10): Promise<TestSetDTO | null> {
+    try {
+      return await firstValueFrom(this.http.generateTest(sessionId, count));
+    } catch {
+      return null;
+    }
+  }
+
+  public async evaluateAnswer(sessionId: number, body: EvaluateRequestDTO): Promise<EvaluateDTO | null> {
+    try {
+      return await firstValueFrom(this.http.evaluateAnswer(sessionId, body));
+    } catch {
+      return null;
+    }
+  }
+
+  public async getStudySets(sessionId: number): Promise<SessionStudySetsDTO | null> {
+    try {
+      return await firstValueFrom(this.http.getStudySets(sessionId));
+    } catch {
+      return null;
+    }
+  }
+
+  public async deleteStudySet(sessionId: number, studySetId: number): Promise<boolean> {
+    try {
+      await firstValueFrom(this.http.deleteStudySet(sessionId, studySetId));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async getFlashcardSet(sessionId: number, studySetId: number): Promise<FlashcardSetDTO | null> {
+    try {
+      return await firstValueFrom(this.http.getFlashcardSet(sessionId, studySetId));
+    } catch {
+      return null;
+    }
+  }
+
+  public async getTestSet(sessionId: number, studySetId: number): Promise<TestSetDTO | null> {
+    try {
+      return await firstValueFrom(this.http.getTestSet(sessionId, studySetId));
+    } catch {
+      return null;
+    }
+  }
+
+  public async getTestProgress(sessionId: number, studySetId: number): Promise<TestProgressDTO | null> {
+    try {
+      return await firstValueFrom(this.http.getTestProgress(sessionId, studySetId));
+    } catch {
+      return null;
+    }
+  }
+
+  public async saveAttempt(sessionId: number, body: SaveAttemptRequestDTO): Promise<void> {
+    try {
+      await firstValueFrom(this.http.saveAttempt(sessionId, body));
+    } catch { noop(); }
+  }
+
+  public async finishTest(sessionId: number, studySetId: number): Promise<void> {
+    try {
+      await firstValueFrom(this.http.finishTest(sessionId, studySetId));
+    } catch { noop(); }
   }
 }

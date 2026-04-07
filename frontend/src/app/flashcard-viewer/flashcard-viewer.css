@@ -1,0 +1,86 @@
+.flashcard-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  overflow: auto;
+}
+
+.flashcard-progress {
+  font-size: 0.82rem;
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+}
+
+.card-scene {
+  width: 100%;
+  max-width: 580px;
+  height: 270px;
+  perspective: 900px;
+  cursor: pointer;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--kendo-color-border) 35%, transparent);
+  background: color-mix(in srgb, var(--kendo-color-app-surface) 70%, transparent);
+  backdrop-filter: blur(6px);
+  backface-visibility: hidden;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.card-face.card-back {
+  transform: rotateY(180deg);
+  background: color-mix(in srgb, var(--kendo-color-primary) 12%, var(--kendo-color-app-surface));
+  border-color: color-mix(in srgb, var(--kendo-color-primary) 30%, transparent);
+}
+
+.card-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.4;
+}
+
+.card-text {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.65;
+  max-width: 480px;
+}
+
+.card-hint {
+  font-size: 0.7rem;
+  opacity: 0.3;
+}
+
+.card-nav {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}

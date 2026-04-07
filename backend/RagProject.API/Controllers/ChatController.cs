@@ -134,5 +134,110 @@ namespace RagProject.API
                 return StatusCode(503, $"RAG Service unavailable: {ex.Message}");
             }
         }
+
+        [HttpGet("chat-session/{sessionId}/study-sets")]
+        public async Task<ActionResult<SessionStudySetsDTO>> GetStudySets(int sessionId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.GetStudySetsAsync(sessionId, currentUser.Id);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpDelete("chat-session/{sessionId}/study-set/{studySetId}")]
+        public async Task<IActionResult> DeleteStudySet(int sessionId, int studySetId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                await chatService.DeleteStudySetAsync(studySetId, sessionId, currentUser.Id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpGet("chat-session/{sessionId}/flashcard-set/{studySetId}")]
+        public async Task<ActionResult<FlashcardSetDTO>> GetFlashcardSet(int sessionId, int studySetId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.GetFlashcardSetAsync(studySetId, sessionId, currentUser.Id);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpGet("chat-session/{sessionId}/test-set/{studySetId}")]
+        public async Task<ActionResult<TestSetDTO>> GetTestSet(int sessionId, int studySetId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.GetTestSetAsync(studySetId, sessionId, currentUser.Id);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpGet("chat-session/{sessionId}/test-set/{studySetId}/progress")]
+        public async Task<ActionResult<TestProgressDTO>> GetTestProgress(int sessionId, int studySetId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                var result = await chatService.GetTestProgressAsync(studySetId, sessionId, currentUser.Id);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpPost("chat-session/{sessionId}/save-attempt")]
+        public async Task<IActionResult> SaveAttempt(int sessionId, [FromBody] SaveAttemptRequest request)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                await chatService.SaveAttemptAsync(sessionId, currentUser.Id, request);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpPost("chat-session/{sessionId}/test-set/{studySetId}/finish")]
+        public async Task<IActionResult> FinishTest(int sessionId, int studySetId)
+        {
+            var currentUser = await userRepository.GetCurrentUserAsync();
+            try
+            {
+                await chatService.FinishTestAsync(studySetId, sessionId, currentUser.Id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
     }
 }

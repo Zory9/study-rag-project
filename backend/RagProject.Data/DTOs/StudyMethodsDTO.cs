@@ -59,4 +59,46 @@ namespace RagProject.Data
         public string Feedback { get; set; } = string.Empty;
         public bool IsCorrect { get; set; }
     }
+
+    public class StudySetSummaryDTO
+    {
+        public int StudySetId { get; set; }
+        public string Kind { get; set; } = string.Empty;
+        public DateTime DateCreated { get; set; }
+        public int ItemCount { get; set; }  
+        public int AnsweredCount { get; set; }
+        public bool IsFinished { get; set; } 
+    }
+
+    public class SessionStudySetsDTO
+    {
+        public List<StudySetSummaryDTO> Items { get; set; } = new();
+    }
+
+    public class TestQuestionAttemptDTO
+    {
+        public int QuestionId { get; set; }
+        public string? SelectedLabel { get; set; }
+        public string? StudentAnswer { get; set; }
+        public bool IsCorrect { get; set; }
+        public int Score { get; set; }
+        public string? Feedback { get; set; }
+    }
+
+    public class TestProgressDTO
+    {
+        public bool IsFinished { get; set; }
+        public List<TestQuestionAttemptDTO> Attempts { get; set; } = new();
+    }
+
+    public class SaveAttemptRequest
+    {
+        public int StudySetId { get; set; }
+        public int QuestionId { get; set; }
+        public string? SelectedLabel { get; set; }
+        public string? StudentAnswer { get; set; }
+        public bool IsCorrect { get; set; }
+        public int Score { get; set; }
+        public string? Feedback { get; set; }
+    }
 }

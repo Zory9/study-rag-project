@@ -35,7 +35,8 @@ import {
 import { Router } from '@angular/router';
 import { ChatService } from '../chat-service/chat.service';
 import { UserService } from '../user-service/user';
-import { ChatSessionDTO, MessageSourceDTO, StudyDocumentDTO } from '../@backend/models/chat';
+import { SessionDrawer } from '../session-drawer/session-drawer';
+import { ChatMessageDTO, ChatSessionDTO, MessageSourceDTO, StudyDocumentDTO } from '../@backend/models/chat';
 import { User as AppUser } from '../@backend/models/user';
 import { sidebarIcon, pencilIcon } from '../icons';
 
@@ -64,6 +65,7 @@ interface SessionData {
     KENDO_DIALOGS,
     KENDO_LABEL,
     KENDO_INPUTS,
+    SessionDrawer,
   ],
   templateUrl: './chat.html',
   styleUrl: './chat.css',
@@ -136,18 +138,6 @@ export class Chat implements OnInit, OnDestroy {
     window.removeEventListener('resize', this.onWindowResize);
   }
 
-  public get activeSession(): SessionData | undefined {
-    return this.sessions.find((s) => s.id === this.activeSessionId);
-  }
-
-  public get currentMessages(): RagMessage[] {
-    return this.activeSession?.messages ?? [];
-  }
-
-  public get attachedDocs(): StudyDocumentDTO[] {
-    return this.activeSession?.attachedDocs ?? [];
-  }
-
   public onWindowResize = (): void => this.updateDrawerMode();
 
   public updateDrawerMode(): void {
@@ -161,19 +151,12 @@ export class Chat implements OnInit, OnDestroy {
     }
   }
 
-  public toggleDrawer(): void {
-    this.drawer.toggle();
-  }
+  public toggleDrawer(): void { this.drawer.toggle(); }
 
   public onDrawerSelect(event: DrawerSelectEvent): void {
-    const id = event.item?.id as number | undefined;
+    const id = event.item?.['id'] as number | undefined;
     if (id != null) this.loadSession(id);
     if (this.drawerMode === 'overlay') this.drawer.toggle();
-  }
-
-  public onSessionClick(session: SessionData): void {
-    this.loadSession(session.id);
-    if (this.drawerMode === 'overlay' && this.drawerExpanded) this.drawer.toggle();
   }
 
   public updateDrawerItems(): void {
@@ -184,13 +167,29 @@ export class Chat implements OnInit, OnDestroy {
     }));
   }
 
+  public onSessionSelected(id: number): void {
+    this.loadSession(id);
+  }
+
+  public get activeSession(): SessionData | undefined {
+    return this.sessions.find((s) => s.id === this.activeSessionId);
+  }
+
+  public get currentMessages(): RagMessage[] {
+    return this.activeSession?.messages ?? [];
+  }
+
+  public get attachedDocs(): StudyDocumentDTO[] {
+    return this.activeSession?.attachedDocs ?? [];
+  }
+
   public async loadSession(id: number): Promise<void> {
     this.activeSessionId = id;
     const existing = this.sessions.find((s) => s.id === id)!;
     if (existing.messages.length === 0) {
       const detail = await this.chatService.getSessionDetail(id);
       if (detail) {
-        existing.messages = detail.messages.map((m) => ({
+        existing.messages = detail.messages.map((m: ChatMessageDTO) => ({
           id: guid(),
           author: m.role === 1 ? this.localUser : this.botUser,
           text: m.content,
@@ -203,13 +202,12 @@ export class Chat implements OnInit, OnDestroy {
         existing.attachedDocs = detail.attachedDocuments;
       }
     }
-    this.updateDrawerItems();
   }
 
   public openNewSessionDialog(): void {
     this.newSessionTitle = '';
     this.showNewSessionDialog = true;
-    if (this.drawerMode === 'overlay' && this.drawerExpanded) this.drawer.toggle();
+    if (this.drawerExpanded && window.innerWidth <= 768) this.toggleDrawer();
   }
 
   public async confirmNewSession(): Promise<void> {
@@ -225,11 +223,15 @@ export class Chat implements OnInit, OnDestroy {
     };
     this.sessions = [newSession, ...this.sessions];
     this.activeSessionId = dto.id;
-    this.updateDrawerItems();
   }
 
   public get sessionToDeleteTitle(): string {
     return this.sessions.find((s) => s.id === this.sessionToDeleteId)?.title ?? '';
+  }
+
+  public onDeleteSession(sessionId: number): void {
+    this.sessionToDeleteId = sessionId;
+    this.confirmDeleteSession = true;
   }
 
   public openDeleteSessionDialog(event: Event, sessionId: number): void {
@@ -253,7 +255,6 @@ export class Chat implements OnInit, OnDestroy {
       this.activeSessionId = this.sessions[0]?.id ?? null;
       if (this.activeSessionId) await this.loadSession(this.activeSessionId);
     }
-    this.updateDrawerItems();
   }
 
   public async onSendMessage(event: SendMessageEvent): Promise<void> {

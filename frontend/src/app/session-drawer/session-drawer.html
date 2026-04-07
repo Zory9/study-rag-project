@@ -1,0 +1,55 @@
+<div class="sd-drawer-header">
+    <div class="sd-header-button" (click)="toggleDrawer.emit()">
+        <kendo-svgicon [icon]="sidebarIcon"></kendo-svgicon>
+    </div>
+
+    @if (mode === 'chat') {
+    <div class="sd-header-button sd-action-btn" (click)="onActionClick()">
+        <kendo-svgicon [icon]="pencilIcon"></kendo-svgicon>
+        @if (expanded) { <label>New Session</label> }
+    </div>
+    <div class="sd-header-button sd-action-btn" routerLink="/study">
+        <kendo-svgicon [icon]="bookIcon"></kendo-svgicon>
+        @if (expanded) { <label>Study Tools</label> }
+    </div>
+    }
+
+    @if (mode === 'study') {
+    <div class="sd-header-button sd-action-btn" (click)="onActionClick()">
+        <kendo-svgicon [icon]="backIcon"></kendo-svgicon>
+        @if (expanded) { <label>Back to Chat</label> }
+    </div>
+    }
+</div>
+
+@if (expanded) {
+<div class="sd-section-label">Sessions</div>
+<div class="sd-session-list">
+    @for (session of sessions; track session.id) {
+    <div class="sd-session-item" [class.active]="session.id === activeSessionId" (click)="onSessionClick(session.id)">
+        <span class="sd-session-title">{{ session.title }}</span>
+        @if (allowDelete) {
+        <button kendoButton fillMode="flat" size="small" [svgIcon]="trashIcon" class="sd-delete-btn" title="Delete"
+            (click)="onDeleteClick($event, session.id)">
+        </button>
+        }
+    </div>
+    }
+    @if (sessions.length === 0) {
+    <p class="sd-empty">
+        @if (mode === 'chat') { <span>No sessions yet.</span> }
+        @if (mode === 'study') { <span>No sessions yet. Create one in Chat.</span> }
+    </p>
+    }
+</div>
+
+<div class="sd-footer">
+    @if (currentUser) {
+    <div class="sd-user">
+        <span class="sd-avatar">{{ currentUser.username[0].toUpperCase() }}</span>
+        <span class="sd-username">{{ currentUser.username }}</span>
+    </div>
+    }
+    <button kendoButton fillMode="flat" size="small" (click)="onLogout()">Log out</button>
+</div>
+}

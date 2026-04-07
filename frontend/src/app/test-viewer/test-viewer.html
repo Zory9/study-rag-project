@@ -1,0 +1,140 @@
+<div class="viewer-content">
+  <div class="viewer-topbar">
+    <button kendoButton fillMode="flat" size="small" [svgIcon]="prevIcon"
+      (click)="backClicked.emit()">All tools</button>
+    <span class="viewer-title">{{ set.label }}</span>
+  </div>
+
+  @if (set.finished) {
+  <div class="test-results">
+    <div class="results-card">
+      <h3 class="results-title">Test complete!</h3>
+
+      <div class="score-display">
+        <span class="score-number">{{ testScore }}</span>
+        <span class="score-separator">/</span>
+        <span class="score-total">{{ set.questions.length }}</span>
+      </div>
+      <p class="score-sub">{{ answeredCount }} of {{ set.questions.length }} answered</p>
+
+      <div class="results-breakdown">
+        @for (q of set.questions; track $index) {
+        <div class="breakdown-item"
+          [class.correct]="isQuestionCorrect(q)"
+          [class.wrong]="isQuestionWrong(q)"
+          [class.skipped]="!q.answered">
+          <span class="breakdown-num">{{ $index + 1 }}</span>
+          <span class="breakdown-q">{{ q.question }}</span>
+          <span class="breakdown-badge">
+            @if (!q.answered) {
+              <span class="badge-skipped">Skip</span>
+            } @else if (isQuestionCorrect(q)) {
+              <kendo-svgicon [icon]="checkIcon" class="badge-correct"></kendo-svgicon>
+            } @else {
+              <kendo-svgicon [icon]="xIcon" class="badge-wrong"></kendo-svgicon>
+            }
+          </span>
+        </div>
+        }
+      </div>
+
+      <div class="results-actions">
+        <button kendoButton themeColor="primary" (click)="retryClicked.emit()">Retry</button>
+        <button kendoButton fillMode="outline" (click)="newTestClicked.emit()">New Test</button>
+      </div>
+    </div>
+  </div>
+
+  } @else {
+  <div class="test-area">
+    <div class="test-progress-bar">
+      <div class="test-progress-fill"
+        [style.width.%]="((questionIndex + 1) / set.questions.length) * 100">
+      </div>
+    </div>
+    <p class="test-progress-label">
+      Question {{ questionIndex + 1 }} of {{ set.questions.length }}
+      &nbsp;·&nbsp; {{ answeredCount }} answered
+    </p>
+
+    <div class="question-card">
+      @if (currentQuestion; as q) {
+
+      @if (isMcq(q)) {
+      <div class="question-header">
+        <span class="question-kind-badge">Multiple choice</span>
+      </div>
+      <p class="question-text">{{ q.question }}</p>
+      <div class="options-list">
+        @for (opt of q.options ?? []; track opt.label) {
+        <button class="{{ mcqOptionClass(q, opt.label) }}"
+          (click)="selectOption(q, opt.label)">
+          <span class="option-label">{{ opt.label }}</span>
+          <span class="option-text">{{ opt.text }}</span>
+        </button>
+        }
+      </div>
+      @if (q.answered) {
+      <div class="explanation-box">
+        <strong>Explanation:</strong> {{ q.explanation }}
+      </div>
+      }
+      }
+
+      @if (isOpen(q)) {
+      <div class="question-header">
+        <span class="question-kind-badge open-badge">Open answer</span>
+      </div>
+      <p class="question-text">{{ q.question }}</p>
+
+      @if (!q.answered) {
+      <kendo-textarea [(ngModel)]="q.studentAnswer" [rows]="5"
+        resizable="vertical" placeholder="Write your answer here…"
+        class="answer-textarea">
+      </kendo-textarea>
+      <button kendoButton themeColor="primary" class="submit-btn"
+        [disabled]="!q.studentAnswer.trim() || q.evaluating"
+        (click)="submitOpen(q)">
+        @if (q.evaluating) {
+        <kendo-loader size="small" themeColor="light"></kendo-loader>
+        }
+        Submit Answer
+      </button>
+      }
+
+      @if (q.answered && q.evaluation) {
+      <div class="open-answer-display">
+        <p class="your-answer-label">Your answer</p>
+        <p class="your-answer-text">{{ q.studentAnswer }}</p>
+      </div>
+      <div class="eval-box" [class.eval-correct]="q.evaluation.isCorrect"
+        [class.eval-wrong]="!q.evaluation.isCorrect">
+        <div class="eval-header">
+          <span class="eval-verdict">
+            <kendo-svgicon [icon]="q.evaluation.isCorrect ? checkIcon : xIcon"></kendo-svgicon>
+            {{ q.evaluation.isCorrect ? 'Correct' : 'Incorrect' }}
+          </span>
+          <span class="eval-score">{{ q.evaluation.score }} / 10</span>
+        </div>
+        <p class="eval-feedback">{{ q.evaluation.feedback }}</p>
+        <details class="sample-answer-details">
+          <summary>Sample answer</summary>
+          <p class="sample-answer-text">{{ q.sampleAnswer }}</p>
+        </details>
+      </div>
+      }
+      }
+
+      }
+    </div>
+
+    <div class="test-nav">
+      <button kendoButton fillMode="outline" [svgIcon]="prevIcon"
+        [disabled]="questionIndex === 0" (click)="prev()">Prev</button>
+      <button kendoButton themeColor="primary" (click)="next()">
+        {{ questionIndex === set.questions.length - 1 ? 'Finish' : 'Next' }}
+      </button>
+    </div>
+  </div>
+  }
+</div>

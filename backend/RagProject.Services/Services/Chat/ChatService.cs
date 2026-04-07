@@ -324,11 +324,219 @@ namespace RagProject.Services
             var ragData = await ragResponse.Content.ReadFromJsonAsync<RagEvaluateResponse>()
                 ?? new RagEvaluateResponse(0, "Could not evaluate.", false);
 
+            var existing = await _dataContext.TestQuestionAttempts
+                .FirstOrDefaultAsync(a =>
+                    a.StudySetId == request.StudySetId &&
+                    a.TestQuestionId == request.QuestionId);
+
+            if (existing == null)
+            {
+                _dataContext.TestQuestionAttempts.Add(new TestQuestionAttempt
+                {
+                    StudySetId = request.StudySetId,
+                    TestQuestionId = request.QuestionId,
+                    StudentAnswer = request.StudentAnswer,
+                    IsCorrect = ragData.IsCorrect,
+                    Score = ragData.Score,
+                    Feedback = ragData.Feedback,
+                    DateCreated = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                existing.StudentAnswer = request.StudentAnswer;
+                existing.IsCorrect = ragData.IsCorrect;
+                existing.Score = ragData.Score;
+                existing.Feedback = ragData.Feedback;
+                existing.DateCreated = DateTime.UtcNow;
+            }
+            await _dataContext.SaveChangesAsync();
+
             return new EvaluateDTO
             {
                 Score = ragData.Score,
                 Feedback = ragData.Feedback,
                 IsCorrect = ragData.IsCorrect
+            };
+        }
+
+        public async Task<SessionStudySetsDTO> GetStudySetsAsync(int sessionId, int userId)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var items = await _dataContext.StudySets
+                .Where(ss => ss.ChatSessionId == sessionId)
+                .OrderByDescending(ss => ss.DateCreated)
+                .Select(ss => new StudySetSummaryDTO
+                {
+                    StudySetId = ss.Id,
+                    Kind = ss.Kind == StudySetKind.Flashcard ? "flashcards" : "test",
+                    DateCreated = ss.DateCreated,
+                    ItemCount = ss.Kind == StudySetKind.Flashcard
+                        ? ss.Flashcards.Count
+                        : ss.TestQuestions.Count,
+                    AnsweredCount = ss.Attempts.Count,
+                    IsFinished = ss.IsFinished
+                })
+                .ToListAsync();
+
+            return new SessionStudySetsDTO { Items = items };
+        }
+
+        public async Task DeleteStudySetAsync(int studySetId, int sessionId, int userId)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var studySet = await _dataContext.StudySets
+                .FirstOrDefaultAsync(ss => ss.Id == studySetId && ss.ChatSessionId == sessionId)
+                ?? throw new KeyNotFoundException("Study set not found.");
+
+            _dataContext.StudySets.Remove(studySet);
+            await _dataContext.SaveChangesAsync();
+        }
+
+        public async Task<TestProgressDTO> GetTestProgressAsync(int studySetId, int sessionId, int userId)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var studySet = await _dataContext.StudySets
+                .Include(ss => ss.Attempts)
+                .FirstOrDefaultAsync(ss =>
+                    ss.Id == studySetId &&
+                    ss.ChatSessionId == sessionId &&
+                    ss.Kind == StudySetKind.Test)
+                ?? throw new KeyNotFoundException("Test set not found.");
+
+            return new TestProgressDTO
+            {
+                IsFinished = studySet.IsFinished,
+                Attempts = studySet.Attempts.Select(a => new TestQuestionAttemptDTO
+                {
+                    QuestionId = a.TestQuestionId,
+                    SelectedLabel = a.SelectedLabel,
+                    StudentAnswer = a.StudentAnswer,
+                    IsCorrect = a.IsCorrect,
+                    Score = a.Score,
+                    Feedback = a.Feedback
+                }).ToList()
+            };
+        }
+
+        public async Task SaveAttemptAsync(int sessionId, int userId, SaveAttemptRequest request)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            // Verify the study set belongs to this session
+            bool setExists = await _dataContext.StudySets
+                .AnyAsync(ss => ss.Id == request.StudySetId && ss.ChatSessionId == sessionId);
+            if (!setExists) throw new KeyNotFoundException("Study set not found.");
+
+            var existing = await _dataContext.TestQuestionAttempts
+                .FirstOrDefaultAsync(a =>
+                    a.StudySetId == request.StudySetId &&
+                    a.TestQuestionId == request.QuestionId);
+
+            if (existing == null)
+            {
+                _dataContext.TestQuestionAttempts.Add(new TestQuestionAttempt
+                {
+                    StudySetId = request.StudySetId,
+                    TestQuestionId = request.QuestionId,
+                    SelectedLabel = request.SelectedLabel,
+                    StudentAnswer = request.StudentAnswer,
+                    IsCorrect = request.IsCorrect,
+                    Score = request.Score,
+                    Feedback = request.Feedback,
+                    DateCreated = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                existing.SelectedLabel = request.SelectedLabel;
+                existing.StudentAnswer = request.StudentAnswer;
+                existing.IsCorrect = request.IsCorrect;
+                existing.Score = request.Score;
+                existing.Feedback = request.Feedback;
+                existing.DateCreated = DateTime.UtcNow;
+            }
+            await _dataContext.SaveChangesAsync();
+        }
+
+        public async Task FinishTestAsync(int studySetId, int sessionId, int userId)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var studySet = await _dataContext.StudySets
+                .FirstOrDefaultAsync(ss =>
+                    ss.Id == studySetId &&
+                    ss.ChatSessionId == sessionId &&
+                    ss.Kind == StudySetKind.Test)
+                ?? throw new KeyNotFoundException("Test set not found.");
+
+            studySet.IsFinished = true;
+            await _dataContext.SaveChangesAsync();
+        }
+
+        public async Task<FlashcardSetDTO> GetFlashcardSetAsync(int studySetId, int sessionId, int userId)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var studySet = await _dataContext.StudySets
+                .Include(ss => ss.Flashcards)
+                .Include(ss => ss.Sources)
+                .FirstOrDefaultAsync(ss =>
+                    ss.Id == studySetId &&
+                    ss.ChatSessionId == sessionId &&
+                    ss.Kind == StudySetKind.Flashcard)
+                ?? throw new KeyNotFoundException("Flashcard set not found.");
+
+            return new FlashcardSetDTO
+            {
+                StudySetId = studySet.Id,
+                DateCreated = studySet.DateCreated,
+                Flashcards = studySet.Flashcards.Select(f => new FlashcardDTO
+                {
+                    Id = f.Id,
+                    Front = f.Front,
+                    Back = f.Back
+                }).ToList(),
+                Sources = MapSources(studySet.Sources)
+            };
+        }
+
+        public async Task<TestSetDTO> GetTestSetAsync(int studySetId, int sessionId, int userId)
+        {
+            await VerifySessionOwnershipAsync(sessionId, userId);
+
+            var studySet = await _dataContext.StudySets
+                .Include(ss => ss.TestQuestions)
+                    .ThenInclude(q => q.Options)
+                .Include(ss => ss.Sources)
+                .FirstOrDefaultAsync(ss =>
+                    ss.Id == studySetId &&
+                    ss.ChatSessionId == sessionId &&
+                    ss.Kind == StudySetKind.Test)
+                ?? throw new KeyNotFoundException("Test set not found.");
+
+            return new TestSetDTO
+            {
+                StudySetId = studySet.Id,
+                DateCreated = studySet.DateCreated,
+                Questions = studySet.TestQuestions.Select(q => new TestQuestionDTO
+                {
+                    Id = q.Id,
+                    Kind = q.Kind == TestQuestionKind.Mcq ? "mcq" : "open",
+                    Question = q.Question,
+                    CorrectLabel = q.CorrectLabel,
+                    Explanation = q.Explanation,
+                    SampleAnswer = q.SampleAnswer,
+                    Options = q.Options.Select(o => new McqOptionDTO
+                    {
+                        Label = o.Label,
+                        Text = o.Text
+                    }).ToList()
+                }).ToList(),
+                Sources = MapSources(studySet.Sources)
             };
         }
 

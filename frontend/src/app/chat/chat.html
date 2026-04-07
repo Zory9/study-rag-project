@@ -2,47 +2,20 @@
     <kendo-drawer-container>
         <kendo-drawer #drawer [(expanded)]="drawerExpanded" [items]="drawerItems" [mode]="drawerMode"
             [mini]="drawerMini" [miniWidth]="48" [width]="260" (select)="onDrawerSelect($event)">
-
             <ng-template kendoDrawerTemplate>
-                <div class="drawer-header">
-                    <div class="header-button" [class.expanded]="drawerExpanded" (click)="toggleDrawer()">
-                        <kendo-svgicon [icon]="sidebarIcon"></kendo-svgicon>
-                    </div>
-                    <div class="k-drawer-item header-button new-chat" (click)="openNewSessionDialog()">
-                        <kendo-svgicon [icon]="pencilIcon"></kendo-svgicon>
-                        @if (drawerExpanded) {
-                        <label>New Session</label>
-                        }
-                    </div>
-                </div>
-
-                @if (drawerExpanded) {
-                <div class="drawer-section-label">Sessions</div>
-                <div class="drawer-session-list">
-                    @for (session of sessions; track session.id) {
-                    <div class="drawer-session-item" [class.active]="session.id === activeSessionId"
-                        (click)="onSessionClick(session)">
-                        <span class="drawer-session-title">{{ session.title }}</span>
-                        <button kendoButton fillMode="flat" size="small" [svgIcon]="trashIcon" class="delete-btn"
-                            title="Delete" (click)="openDeleteSessionDialog($event, session.id)">
-                        </button>
-                    </div>
-                    }
-                    @if (sessions.length === 0) {
-                    <p class="drawer-empty">No sessions yet.</p>
-                    }
-                </div>
-
-                <div class="drawer-footer">
-                    @if (currentUser) {
-                    <div class="drawer-user">
-                        <span class="user-avatar">{{ currentUser.username[0].toUpperCase() }}</span>
-                        <span class="user-name">{{ currentUser.username }}</span>
-                    </div>
-                    }
-                    <button kendoButton fillMode="flat" size="small" (click)="logout()">Log out</button>
-                </div>
-                }
+                <app-session-drawer
+                    [sessions]="sessions"
+                    [activeSessionId]="activeSessionId"
+                    [currentUser]="currentUser"
+                    mode="chat"
+                    [allowDelete]="true"
+                    [expanded]="drawerExpanded"
+                    (toggleDrawer)="toggleDrawer()"
+                    (sessionSelected)="onSessionSelected($event)"
+                    (actionClicked)="openNewSessionDialog()"
+                    (deleteClicked)="onDeleteSession($event)"
+                    (logoutClicked)="logout()">
+                </app-session-drawer>
             </ng-template>
         </kendo-drawer>
 

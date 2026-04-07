@@ -27,5 +27,8 @@ namespace RagProject.Data
 
         // MCQ options in a child table
         public ICollection<McqOption> Options { get; set; } = new List<McqOption>();
+
+        // Student answers persisted per attempt
+        public ICollection<TestQuestionAttempt> Attempts { get; set; } = new List<TestQuestionAttempt>();
     }
 }

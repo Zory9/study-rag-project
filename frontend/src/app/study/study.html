@@ -1,0 +1,121 @@
+<div class="app-container">
+    <kendo-drawer-container>
+
+        <kendo-drawer #drawer [(expanded)]="drawerExpanded" [items]="drawerItems" [mode]="drawerMode"
+            [mini]="drawerMini" [miniWidth]="48" [width]="240" (select)="onDrawerSelect($event)">
+            <ng-template kendoDrawerTemplate>
+                <app-session-drawer [sessions]="sessions" [activeSessionId]="activeSessionId"
+                    [currentUser]="currentUser" mode="study" [allowDelete]="false" [expanded]="drawerExpanded"
+                    (toggleDrawer)="toggleDrawer()" (sessionSelected)="selectSession($event)"
+                    (actionClicked)="goToChat()" (logoutClicked)="logout()">
+                </app-session-drawer>
+            </ng-template>
+        </kendo-drawer>
+
+        <kendo-drawer-content>
+            <div class="study-layout">
+
+                @if (activeSessionId === null) {
+                <div class="full-center">
+                    <div class="empty-state">
+                        <kendo-svgicon [icon]="bookIcon" class="empty-icon-svg"></kendo-svgicon>
+                        <h2>No sessions yet</h2>
+                        <p>Create a session in the Chat, upload your study materials, then come back here.</p>
+                        <button kendoButton themeColor="primary" size="large" (click)="goToChat()">Go to Chat</button>
+                    </div>
+                </div>
+
+                } @else {
+                <aside class="tools-panel">
+                    <p class="panel-session-name">{{ activeSession?.title }}</p>
+
+                    <div class="panel-section-label">Study Tools</div>
+                    <div class="tool-cards">
+                        @for (tool of tools; track tool.id) {
+                        <button class="tool-card" [disabled]="isGenerating" (click)="generateTool(tool)">
+                            <span class="tool-icon-slot">
+                                @if (isGenerating && generatingToolId === tool.id) {
+                                <kendo-loader size="small"></kendo-loader>
+                                } @else {
+                                <kendo-svgicon
+                                    [icon]="tool.id === 'flashcards' ? layoutStackedIcon : clipboardTextIcon"></kendo-svgicon>
+                                }
+                            </span>
+                            <span class="tool-name">{{ tool.label }}</span>
+                            <span class="tool-desc">{{ tool.description }}</span>
+                        </button>
+                        }
+                    </div>
+
+                    @if (isLoadingHistory) {
+                    <div class="history-loading">
+                        <kendo-loader size="small" themeColor="primary"></kendo-loader>
+                    </div>
+                    }
+                    @if (!isLoadingHistory && history.length > 0) {
+                    <div class="panel-section-label history-label">
+                        <kendo-svgicon [icon]="historyIcon"></kendo-svgicon>
+                        Recent
+                    </div>
+                    <div class="history-list">
+                        @for (entry of history; track entry) {
+                        <button class="history-item" [class.active]="isActiveEntry(entry)"
+                            (click)="openHistoryEntry(entry)">
+                            <kendo-svgicon [icon]="entry.kind === 'flashcards' ? layoutStackedIcon : clipboardTextIcon"
+                                class="history-kind-icon">
+                            </kendo-svgicon>
+                            <span class="history-item-label">{{ historyEntryLabel(entry) }}</span>
+                            @if (entry.kind === 'test' && entry.set.finished) {
+                            <kendo-svgicon [icon]="checkIcon" class="history-finished-check" title="Completed">
+                            </kendo-svgicon>
+                            }
+                            <span class="history-delete" title="Remove" (click)="removeHistory($event, entry)">
+                                <kendo-svgicon [icon]="xIcon"></kendo-svgicon>
+                            </span>
+                        </button>
+                        }
+                    </div>
+                    }
+                </aside>
+
+                <main class="viewer-panel">
+
+                    @if (isGenerating) {
+                    <div class="full-center">
+                        <kendo-loader size="large" themeColor="primary"></kendo-loader>
+                        <p class="generating-label">Generating…</p>
+                    </div>
+                    }
+
+                    @if (!isGenerating && viewMode === 'hub') {
+                    <div class="full-center">
+                        <div class="hub-idle">
+                            <kendo-svgicon [icon]="bulbIcon" class="hub-icon-svg"></kendo-svgicon>
+                            <h3>Pick a tool to get started</h3>
+                            <p>Select <strong>Flashcards</strong> or <strong>Practice Test</strong> from the panel on
+                                the left to generate study materials from your uploaded documents.</p>
+                        </div>
+                    </div>
+                    }
+
+                    @if (!isGenerating && viewMode === 'flashcards' && activeFlashcardSet) {
+                    <app-flashcard-viewer [set]="activeFlashcardSet" [cardIndex]="cardIndex" [cardFlipped]="cardFlipped"
+                        (backClicked)="backToHub()" (cardIndexChange)="onCardIndexChange($event)"
+                        (cardFlippedChange)="onCardFlippedChange($event)">
+                    </app-flashcard-viewer>
+                    }
+
+                    @if (!isGenerating && viewMode === 'test' && activeTestSet) {
+                    <app-test-viewer [set]="activeTestSet" [questionIndex]="questionIndex" (backClicked)="backToHub()"
+                        (questionIndexChange)="onQuestionIndexChange($event)" (mcqAnswered)="onMcqAnswered($event)"
+                        (openSubmitted)="onOpenSubmitted($event)" (testFinished)="onTestFinished()"
+                        (retryClicked)="onRetryClicked()" (newTestClicked)="onNewTestClicked()">
+                    </app-test-viewer>
+                    }
+
+                </main>
+                }
+            </div>
+        </kendo-drawer-content>
+    </kendo-drawer-container>
+</div>

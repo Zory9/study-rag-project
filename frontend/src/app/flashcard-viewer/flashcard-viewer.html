@@ -1,0 +1,36 @@
+<div class="viewer-content">
+  <div class="viewer-topbar">
+    <button kendoButton fillMode="flat" size="small" [svgIcon]="prevIcon" (click)="backClicked.emit()">All
+      tools</button>
+    <span class="viewer-title">{{ set.label }}</span>
+  </div>
+
+  <div class="flashcard-area">
+    <div class="flashcard-progress">
+      {{ cardIndex + 1 }} / {{ set.cards.length }}
+    </div>
+
+    <div class="card-scene" (click)="flip()">
+      <div class="card-inner" [class.flipped]="cardFlipped">
+        <div class="card-face card-front">
+          <span class="card-label">Question</span>
+          <p class="card-text">{{ currentCard?.front }}</p>
+          <span class="card-hint">Click to reveal answer</span>
+        </div>
+        <div class="card-face card-back">
+          <span class="card-label">Answer</span>
+          <p class="card-text">{{ currentCard?.back }}</p>
+          <span class="card-hint">Click to flip back</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-nav">
+      <button kendoButton fillMode="outline" [svgIcon]="prevIcon" [disabled]="cardIndex === 0"
+        (click)="prev()">Prev</button>
+      <button kendoButton fillMode="outline" [svgIcon]="flipIcon" (click)="flip()">Flip</button>
+      <button kendoButton fillMode="outline" [svgIcon]="nextIcon" [disabled]="cardIndex === set.cards.length - 1"
+        (click)="next()">Next</button>
+    </div>
+  </div>
+</div>

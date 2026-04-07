@@ -14,5 +14,12 @@ namespace RagProject.Services
         Task<FlashcardSetDTO> GenerateFlashcardsAsync(int sessionId, int userId, int count);
         Task<TestSetDTO> GenerateTestAsync(int sessionId, int userId, int count);
         Task<EvaluateDTO> EvaluateAnswerAsync(int sessionId, int userId, EvaluateRequest request);
+        Task<SessionStudySetsDTO> GetStudySetsAsync(int sessionId, int userId);
+        Task DeleteStudySetAsync(int studySetId, int sessionId, int userId);
+        Task<FlashcardSetDTO> GetFlashcardSetAsync(int studySetId, int sessionId, int userId);
+        Task<TestSetDTO> GetTestSetAsync(int studySetId, int sessionId, int userId);
+        Task<TestProgressDTO> GetTestProgressAsync(int studySetId, int sessionId, int userId);
+        Task SaveAttemptAsync(int sessionId, int userId, SaveAttemptRequest request);
+        Task FinishTestAsync(int studySetId, int sessionId, int userId);
     }
 }
