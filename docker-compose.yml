@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # ChromaDB vector database
   chroma:
     image: chromadb/chroma
     container_name: chroma-server
@@ -12,3 +13,80 @@ services:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=TRUE
     restart: always
+
+  # SQL Server database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    ports:
+      - "1434:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=StudyBuddy_2026!
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    restart: unless-stopped
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "StudyBuddy_2026!" -Q "SELECT 1" -No
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # RAG service
+  rag-service:
+    build:
+      context: ./rag-service
+      dockerfile: Dockerfile
+    container_name: rag-service
+    ports:
+      - "3100:3100"
+    env_file:
+      - ./rag-service/.env
+    environment:
+      - CHROMA_URL=http://chroma:8000
+    volumes:
+      - uploads-data:/app/Uploads
+    depends_on:
+      - chroma
+    restart: unless-stopped
+
+  # .NET backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "5153:5153"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5153
+      - RagServiceUrl=http://rag-service:3100
+      - FrontendUrl=http://localhost:4200
+      - ConnectionStrings__DefaultConnection=Data Source=sqlserver,1433;Initial Catalog=ragproject;User Id=sa;Password=StudyBuddy_2026!;Encrypt=True;Trust Server Certificate=True;Command Timeout=30
+    volumes:
+      - uploads-data:/app/Uploads
+    depends_on:
+      chroma:
+        condition: service_started
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Angular frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - rag-service
+      - backend
+    restart: unless-stopped
+
+volumes:
+  sqlserver-data:
+  uploads-data:

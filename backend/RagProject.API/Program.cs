@@ -23,7 +23,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<DataContext>(options =>
 {
-    string connectionString = builder.Configuration["Appsettings:DefaultConnection"]!;
+    string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
     options.UseSqlServer(connectionString);
 });
 
@@ -40,7 +40,7 @@ builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient<IChatService, ChatService>(client =>
 {
-    var baseUrl = builder.Configuration["Appsettings:RagServiceUrl"] ?? "http://localhost:3100";
+    var baseUrl = builder.Configuration["RagServiceUrl"] ?? "http://localhost:3100";
     client.BaseAddress = new Uri(baseUrl);
 });
 
@@ -49,9 +49,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        string signingKey = builder.Configuration["Appsettings:JwtKey"]!;
-        string validIssuer = builder.Configuration["Appsettings:JwtIssuer"]!;
-        string validAudience = builder.Configuration["Appsettings:JwtAudience"]!;
+        string signingKey = builder.Configuration["Jwt:Key"]!;
+        string validIssuer = builder.Configuration["Jwt:Issuer"]!;
+        string validAudience = builder.Configuration["Jwt:Audience"]!;
 
         options.TokenValidationParameters = new TokenValidationParameters()
         {
@@ -70,7 +70,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin", options =>
     {
-        string frontendUrl = builder.Configuration["Appsettings:FrontendURL"]!;
+        string frontendUrl = builder.Configuration["FrontendUrl"] ?? "http://localhost:4200";
 
         options.WithOrigins(frontendUrl)
             .AllowAnyHeader()
@@ -86,6 +86,11 @@ builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+    await db.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

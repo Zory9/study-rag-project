@@ -9,9 +9,9 @@ namespace RagProject.Services
 {
     public class JwtService(IConfiguration configuration) : IJwtService
     {
-        private readonly string _securityKey = configuration["Appsettings:JwtKey"] ?? throw new InvalidOperationException("JWT key is not configured.");
-        private readonly string _issuer = configuration["Appsettings:JwtIssuer"] ?? throw new InvalidOperationException("JWT issuer is not configured.");
-        private readonly string _audience = configuration["Appsettings:JwtAudience"] ?? throw new InvalidOperationException("JWT audience is not configured.");
+        private readonly string _securityKey = configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is not configured.");
+        private readonly string _issuer = configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT issuer is not configured.");
+        private readonly string _audience = configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT audience is not configured.");
 
         public string GenerateAcessToken(int userID)
         {
