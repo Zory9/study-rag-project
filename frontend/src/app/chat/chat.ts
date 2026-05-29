@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, ViewChild, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MarkdownPipe } from '../markdown.pipe';
 import { KENDO_BUTTONS } from '@progress/kendo-angular-buttons';
 import { guid } from '@progress/kendo-angular-common';
 import {
@@ -57,6 +58,7 @@ interface SessionData {
   imports: [
     CommonModule,
     FormsModule,
+    MarkdownPipe,
     KENDO_LAYOUT,
     KENDO_CONVERSATIONALUI,
     KENDO_BUTTONS,

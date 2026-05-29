@@ -10,8 +10,14 @@ export async function getQueryIntent(
 ): Promise<QueryIntent> {
   const response = await model.invoke(`
     Analyze this query: "${query}"
-    1. Type: Is the user asking for a summary of the whole document/collection, or a specific detail?
-       Respond with exactly the word "summary" or "specific".
+
+    1. Type: Choose ONLY "summary" if the user is explicitly asking for an overview or summary
+       of the entire document or the whole uploaded material (e.g. questions like "summarise the document",
+       "what is this document about", "give me an overview of the files").
+       For ANY other question - including explanations, definitions, comparisons, how-something-works,
+       specific facts, or anything that is not explicitly a request for an overview - respond "specific".
+       When in doubt, respond "specific".
+
     2. Target: If the user mentions a specific file or document name, extract that keyword, otherwise null.
 
     Respond ONLY with valid JSON - no markdown, no code fences:

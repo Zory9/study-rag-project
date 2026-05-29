@@ -73,7 +73,7 @@
                         </div>
                         } @else {
                         <div class="rag-message">
-                            <p class="rag-text">{{ message.text }}</p>
+                            <div class="rag-text" [innerHTML]="message.text | markdown"></div>
                             @if (message.sources && message.sources.length > 0) {
                             <button kendoButton class="sources-toggle"
                                 [svgIcon]="message.sourcesExpanded ? collapseIcon : expandIcon"

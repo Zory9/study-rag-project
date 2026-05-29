@@ -316,9 +316,48 @@ kendo-drawer-content,
 
 .rag-text {
     margin: 0;
-    white-space: pre-wrap;
     line-height: 1.6;
 }
+
+/* Markdown rendered content */
+.rag-text p { margin: 0 0 0.5rem 0; }
+.rag-text p:last-child { margin-bottom: 0; }
+.rag-text ul, .rag-text ol { margin: 0.25rem 0 0.5rem 1.25rem; padding: 0; }
+.rag-text li { margin-bottom: 0.2rem; }
+.rag-text h1, .rag-text h2, .rag-text h3,
+.rag-text h4, .rag-text h5, .rag-text h6 {
+    margin: 0.75rem 0 0.25rem 0;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.rag-text h1 { font-size: 1.2rem; }
+.rag-text h2 { font-size: 1.1rem; }
+.rag-text h3, .rag-text h4 { font-size: 1rem; }
+.rag-text code {
+    background: rgba(0,0,0,0.08);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    font-size: 0.88em;
+    font-family: monospace;
+}
+.rag-text pre {
+    background: rgba(0,0,0,0.06);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+}
+.rag-text pre code { background: none; padding: 0; }
+.rag-text blockquote {
+    border-left: 3px solid var(--kendo-color-primary);
+    margin: 0.5rem 0;
+    padding: 0.25rem 0.75rem;
+    opacity: 0.8;
+}
+.rag-text strong { font-weight: 600; }
+.rag-text em { font-style: italic; }
+.rag-text a { color: var(--kendo-color-primary); text-decoration: underline; }
+.rag-text hr { border: none; border-top: 1px solid rgba(0,0,0,0.12); margin: 0.5rem 0; }
 
 .sources-toggle {
     display: inline-block;

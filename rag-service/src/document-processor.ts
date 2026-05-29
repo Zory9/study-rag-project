@@ -2,7 +2,7 @@ import "dotenv/config";
 import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { loadByExtension, splitDocuments, sanitizeChunks, generateSummary } from "./ingestion.js";
-import { runRetrieval } from "./retrieval.js";
+import { runRetrieval, getAllSessionChunks } from "./retrieval.js";
 import { getQueryIntent, rewriteQueryWithHistory, generateAnswer, generateMultiDocSummary, generateFlashcards, generateTest, evaluateOpenAnswer } from "./answer-generation.js";
 import type { AiChatResponse, ChatHistoryMessage, FlashcardSet, TestSet, EvaluateResponse } from "../types.js";
 
@@ -77,9 +77,7 @@ export class DocumentProcessor {
 
   // Generates flashcards from the session's material.
   async flashCards(sessionId: number, count = 10): Promise<FlashcardSet> {
-    const intent = { type: "specific" as const, targetFile: null };
-    const query = "key concepts, definitions and important facts";
-    const retrievalResult = await runRetrieval(query, sessionId, intent, this.vectorStore);
+    const retrievalResult = await getAllSessionChunks(sessionId, this.vectorStore);
 
     if (typeof retrievalResult === "string") {
       return { flashcards: [], sources: [] };
@@ -90,9 +88,7 @@ export class DocumentProcessor {
 
   // Generates a mixed test from the session's material.
   async test(sessionId: number, count = 10): Promise<TestSet> {
-    const intent = { type: "specific" as const, targetFile: null };
-    const query = "key concepts, definitions, facts and reasoning questions";
-    const retrievalResult = await runRetrieval(query, sessionId, intent, this.vectorStore);
+    const retrievalResult = await getAllSessionChunks(sessionId, this.vectorStore);
 
     if (typeof retrievalResult === "string") {
       return { questions: [], sources: [] };
