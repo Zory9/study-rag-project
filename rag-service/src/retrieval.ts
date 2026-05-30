@@ -141,9 +141,10 @@ export async function runRetrieval(
   return buildRetrievalResponse(relevantDocs);
 }
 
-// 300 is used as a conservative safe limit
-// since gpt-4o context window is ~128k tokens
-const MAX_CHUNKS_FOR_GENERATION = 300;
+// 80 chunks is a safe limit for
+// both gpt-4o's context window and OpenAI's TPM rate limits,
+// accounting for output tokens from flashcard/test generation.
+const MAX_CHUNKS_FOR_GENERATION = 80;
 
 // Fetches all non-summary chunks for a session from Chroma.
 // Used for flashcard and test generation so the full material
