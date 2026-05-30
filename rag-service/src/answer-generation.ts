@@ -239,7 +239,7 @@ export async function evaluateOpenAnswer(
     1. Score the answer from 0 to 10 based on correctness, completeness and clarity.
     2. Write 2-4 sentences of constructive feedback: acknowledge what was correct, then explain what was missing or incorrect.
     3. Be encouraging but honest.
-    4. Respond in the language used in the student's answer.
+    4. Write the response facing the student. Respond in the language used in the student's answer.
     5. Respond ONLY with valid JSON — no markdown, no code fences:
     {{"score": <number 0-10>, "feedback": "<string>"}}`,
   );
